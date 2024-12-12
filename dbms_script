@@ -1,0 +1,33 @@
+#!/bin/bash
+
+echo "Welcome to ITI DBMS"
+select option1 in "Create database" "List databases" "Connect to database" "Drop database" "Exit"; do
+  case $option1 in
+  "Create database")
+    read -p "Please enter your DB name: " DBName
+    echo "Successfully created $DBName"
+    ;;
+  "List databases")
+    echo "Databases list:"
+    echo "==============="
+    ;;
+  "Connect to database")
+    read -p "Please enter the name of the database you want: " DBConnect
+    echo "Connected to $DBConnect"
+    ;;
+  "Drop database")
+    read -p "Please enter the name of the database you want: " DBDrop
+    read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
+    if [[ "$dropFlag" =~ "yes" ]]; then
+      echo "$DBDrop is successfully dropped"
+    fi
+    ;;
+  "Exit")
+    break
+    ;;
+  *)
+    echo "Invalid option. Please try again."
+    ;;
+  esac
+done
+
