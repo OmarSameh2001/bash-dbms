@@ -1,33 +1,130 @@
 #!/bin/bash
 
-echo "Welcome to ITI DBMS"
-select option1 in "Create database" "List databases" "Connect to database" "Drop database" "Exit"; do
-  case $option1 in
-  "Create database")
-    read -p "Please enter your DB name: " DBName
-    echo "Successfully created $DBName"
-    ;;
-  "List databases")
-    echo "Databases list:"
-    echo "==============="
-    ;;
-  "Connect to database")
-    read -p "Please enter the name of the database you want: " DBConnect
-    echo "Connected to $DBConnect"
-    ;;
-  "Drop database")
-    read -p "Please enter the name of the database you want: " DBDrop
-    read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
-    if [[ "$dropFlag" =~ "yes" ]]; then
-      echo "$DBDrop is successfully dropped"
+function main {
+  if [ -e ~/dev/bash-dbms ]; then
+    cd ~/dev/bash-dbms
+  fi
+  echo "Welcome to ITI DBMS"
+  select option1 in "Create database" "List databases" "Connect to database" "Drop database" "Exit"; do
+    if [ -e ~/dev/bash-dbms ]; then
+      cd ~/dev/bash-dbms
     fi
-    ;;
-  "Exit")
-    break
-    ;;
-  *)
-    echo "Invalid option. Please try again."
-    ;;
-  esac
-done
+    case $option1 in
+    "Create database")
+      createDB
+      ;;
+    "List databases")
+      checkDB
+      flag=$?
+      if [ $flag -eq 0 ]; then 
+        listDB
+      fi
+      ;;
+    "Connect to database")
+      checkDB
+      flag=$?
+      if [ $flag -eq 0 ]; then
+        connectDB
+      fi
+      ;;
+    "Drop database")
+      checkDB
+      flag=$?
+      if [ $flag -eq 0 ]; then
+        dropDB
+      fi
+      ;;
+    "Exit")
+      break
+      ;;
+    *)
+      echo "Invalid option. Please try again."
+      ;;
+    esac
+  done
+}
 
+function createDB() {
+  read -p "Please enter your DB name: " DBName
+  if [ -d "./$DBName" ]; then
+    echo "$DBName already exists"
+    return
+  fi
+  mkdir "$DBName"
+  echo "Successfully created $DBName"
+}
+
+function listDB() {
+  echo "Databases list:"
+  echo "=========================="
+  ls -d */ | sed 's|[/,]||g'
+}
+
+function connectDB() {
+  directories=$(ls -d */ | sed 's|[/,]||g')
+  select option2 in "$directories"; do
+    echo "Please enter the name or number of the database you want: "
+    case $option2 in
+    *)
+      DBConnect=$option2
+      if [ -d "./$DBConnect" ]; then
+        echo "Connected to $DBConnect"
+      else
+        echo "Database $DBConnect does not exist."
+      fi
+      break
+      ;;
+    esac
+  done
+}
+
+function dropDB() {
+  read -p "Please enter the name of the database you want to drop: " DBDrop
+  read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
+  if [[ "$dropFlag" == "y" ]]; then
+    if [ -d "$DBDrop" ]; then
+      rm -r "$DBDrop"
+      echo "$DBDrop is successfully dropped"
+    else
+      echo "Database $DBDrop does not exist."
+    fi
+  else
+    echo "Database drop operation cancelled."
+  fi
+}
+
+
+# Check if any DB exists
+function checkDB() {
+  if [ $(ls -d */ 2> /tmp/err | wc -w) -eq 0 ]; then
+    echo "No databases found."
+    return 1
+  fi
+}
+
+function accessDB() {
+  echo "Welcome to $1 database"
+  select option3 in "Create table" "List tables" "Select table" "Drop table" "Exit"; do
+    case $option3 in
+    "Create table")
+      createTable
+      ;;
+    "List tables")
+      listTables
+      ;;
+    "Select table")
+      selectTable
+      ;;
+    "Drop table")
+      dropTable
+      ;;
+    "Exit")
+      break
+      ;;
+    *)
+      echo "Invalid option. Please try again."
+      ;;
+    esac
+  done
+}
+main
