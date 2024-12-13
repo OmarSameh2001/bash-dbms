@@ -1,5 +1,6 @@
 #!/bin/bash
 
+fail="1)Create database 2)List databases 3)Connect to database 4)Drop database 5)Exit"
 function main {
   if [ -e ~/dev/bash-dbms ]; then
     cd ~/dev/bash-dbms
@@ -62,35 +63,60 @@ function listDB() {
 
 function connectDB() {
   directories=$(ls -d */ | sed 's|[/,]||g')
-  select option2 in "$directories"; do
-    echo "Please enter the name or number of the database you want: "
+  echo "Please enter the name or number of the database you want: "
+  select option2 in "$directories" "Exit"; do
     case $option2 in
+    "Exit")
+      echo "Exiting..."
+      echo $fail
+      break
+      ;;
     *)
       DBConnect=$option2
-      if [ -d "./$DBConnect" ]; then
+      if [[ -d "$DBConnect" ]]; then
+        cd "$DBConnect"
         echo "Connected to $DBConnect"
+        accessDB "$DBConnect"
+        cd ..
+        echo "Disconnected from DB $DBConnect"
+        echo $fail
+        break
       else
-        echo "Database $DBConnect does not exist."
+        echo "Database with number $REPLY does not exist."
+        echo "Please enter valid name or number for the database you want: "
       fi
-      break
       ;;
     esac
   done
 }
 
 function dropDB() {
-  read -p "Please enter the name of the database you want to drop: " DBDrop
-  read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
-  if [[ "$dropFlag" == "y" ]]; then
-    if [ -d "$DBDrop" ]; then
-      rm -r "$DBDrop"
-      echo "$DBDrop is successfully dropped"
-    else
-      echo "Database $DBDrop does not exist."
-    fi
-  else
-    echo "Database drop operation cancelled."
-  fi
+  directories=$(ls -d */ | sed 's|[/,]||g')
+  echo "Please enter the name or number of the database you want to drop: "
+  select option2 in "$directories" "Cancel"; do
+    case $option2 in
+    "Cancel")
+      echo "Cancelling..."
+      echo $fail
+      break
+      ;;
+    *)
+      DBDrop=$option2
+      read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
+      if [[ "$dropFlag" =~ "yes" ]]; then
+        if [ -d "$DBDrop" ]; then
+          rm -r "$DBDrop"
+          echo "$DBDrop is successfully dropped"
+        else
+          echo "Database $DBDrop does not exist."
+        fi
+      else
+        echo "Database with number $REPLY does not exist."
+        echo "Please enter valid name or number for the database you want to drop: "
+      fi
+      ;;
+    esac
+  done
 }
 
 
@@ -101,6 +127,8 @@ function checkDB() {
     return 1
   fi
 }
+
+
 
 function accessDB() {
   echo "Welcome to $1 database"
@@ -126,5 +154,56 @@ function accessDB() {
       ;;
     esac
   done
+}
+function createTable() {
+  read -p "Please enter the name of the table you want to create: " tableName
+  if [ -f "./$tableName" ]; then
+    echo "Table $tableName already exists"
+    return
+  fi
+  touch "$tableName"
+  echo "Table $tableName is successfully created"
+}
+
+function listTables() {
+  echo "Tables list:"
+  echo "=========================="
+  ls -p | grep -v / | grep -v "^\."
+}
+
+function selectTable() {
+  # implement select logic (queries)
+  files=$(ls -p | grep -v / | grep -v "^\.")
+  select option4 in "$files"; do
+    echo "Please enter the name or number of the table you want: "
+    case $option4 in
+    +[0-9]*[0-9])
+    echo
+      # TBConnect=$option4
+      # if [ -f "./$TBConnect" ]; then
+      #   echo "Connected to $TBConnect"
+      # else
+      #   echo "Table $TBConnect does not exist."
+      # fi
+      break
+      ;;
+    esac
+  done
+}
+
+function dropTable() {
+  # make select
+  read -p "Please enter the name of the table you want to drop: " TBdrop
+  read -p "Are you sure you want to permanently drop $TBdrop? [y/n]: " dropFlag
+  if [[ "$dropFlag" == "y" ]]; then
+    if [ -f "$TBdrop" ]; then
+      rm "$TBdrop"
+      echo "$TBdrop is successfully dropped"
+    else
+      echo "Table $TBdrop does not exist."
+    fi
+  else
+    echo "Table drop operation cancelled."
+  fi
 }
 main
