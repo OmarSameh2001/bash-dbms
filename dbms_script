@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # variable for exit message
-fail="1)Create database 2)List databases 3)Connect to database 4)Drop database 5)Exit"
+mainMenu="1)Create database 2)List databases 3)Connect to database 4)Drop database 5)Exit"
 function main {
   # check if current directory is bash-dbms
+  # remove 
   if [ -e ~/dev/bash-dbms ]; then
     cd ~/dev/bash-dbms
   fi
@@ -69,13 +70,13 @@ function listDB() {
 
 # connect to database by cd to its directory
 function connectDB() {
-  directories=$(ls -d */ | sed 's|[/,]||g')
+  databases=$(ls -d */ | sed 's|[/,]||g')
   echo "Please enter the number of the database you want: "
-  select option2 in "$directories" "Exit"; do
+  select option2 in "$databases" "Exit"; do
     case $option2 in
     "Exit")
       echo "Exiting..."
-      echo $fail
+      echo $mainMenu
       break
       ;;
     *)
@@ -87,7 +88,7 @@ function connectDB() {
         # after exit accessTables (disconnect)
         cd ..
         echo "Disconnected from DB $DBConnect"
-        echo $fail
+        echo $mainMenu
         break
       else
         # $REPLY is the selected number
@@ -101,13 +102,13 @@ function connectDB() {
 
 # drop database
 function dropDB() {
-  directories=$(ls -d */ | sed 's|[/,]||g')
+  databases=$(ls -d */ | sed 's|[/,]||g')
   echo "Please enter the number of the database you want to drop: "
-  select option2 in "$directories" "Exit"; do
+  select option2 in "$databases" "Exit"; do
     case $option2 in
     "Exit")
       echo "Exiting..."
-      echo $fail
+      echo $mainMenu
       break
       ;;
     *)
@@ -221,7 +222,7 @@ function insertTable() {
 }
 
 function selectTable() {
-  # implement select logic (mina nagy youtube) (all, equal (by id or name), bonus is < or >), projecion is bonus
+  # implement select logic (mina nagy youtube) (all, equal (by id or column), bonus is < or >), projecion is bonus
   tables=$(ls -p | grep -v / | grep -v "^\.")
   select option4 in "$tables" "Exit"; do
     echo "Please enter the name or number of the table you want: "
@@ -233,7 +234,7 @@ function selectTable() {
     *)
       if [ -f "./$option4" ]; then
         echo "Connected to $option4"
-        # implement select logic (mina nagy youtube) (all, equal (by id or name), bonus is < or >), projecion is bonus
+        # implement select logic (mina nagy youtube) (all, equal (by id or column), bonus is < or >), projecion is bonus
       else
         echo "Table with number $REPLY does not exist."
       fi
