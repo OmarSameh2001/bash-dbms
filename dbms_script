@@ -1,10 +1,13 @@
 #!/bin/bash
 
+# variable for exit message
 fail="1)Create database 2)List databases 3)Connect to database 4)Drop database 5)Exit"
 function main {
+  # check if current directory is bash-dbms
   if [ -e ~/dev/bash-dbms ]; then
     cd ~/dev/bash-dbms
   fi
+  # start menu
   echo "Welcome to ITI DBMS"
   select option1 in "Create database" "List databases" "Connect to database" "Drop database" "Exit"; do
     if [ -e ~/dev/bash-dbms ]; then
@@ -45,6 +48,8 @@ function main {
   done
 }
 
+# create database
+# add db name validation
 function createDB() {
   read -p "Please enter your DB name: " DBName
   if [ -d "./$DBName" ]; then
@@ -55,15 +60,17 @@ function createDB() {
   echo "Successfully created $DBName"
 }
 
+# list databases
 function listDB() {
   echo "Databases list:"
   echo "=========================="
   ls -d */ | sed 's|[/,]||g'
 }
 
+# connect to database by cd to its directory
 function connectDB() {
   directories=$(ls -d */ | sed 's|[/,]||g')
-  echo "Please enter the name or number of the database you want: "
+  echo "Please enter the number of the database you want: "
   select option2 in "$directories" "Exit"; do
     case $option2 in
     "Exit")
@@ -76,35 +83,38 @@ function connectDB() {
       if [[ -d "$DBConnect" ]]; then
         cd "$DBConnect"
         echo "Connected to $DBConnect"
-        accessDB "$DBConnect"
+        accessTables "$DBConnect"
+        # after exit accessTables (disconnect)
         cd ..
         echo "Disconnected from DB $DBConnect"
         echo $fail
         break
       else
+        # $REPLY is the selected number
         echo "Database with number $REPLY does not exist."
-        echo "Please enter valid name or number for the database you want: "
+        echo "Please enter valid number for the database you want: "
       fi
       ;;
     esac
   done
 }
 
+# drop database
 function dropDB() {
   directories=$(ls -d */ | sed 's|[/,]||g')
-  echo "Please enter the name or number of the database you want to drop: "
-  select option2 in "$directories" "Cancel"; do
+  echo "Please enter the number of the database you want to drop: "
+  select option2 in "$directories" "Exit"; do
     case $option2 in
-    "Cancel")
-      echo "Cancelling..."
+    "Exit")
+      echo "Exiting..."
       echo $fail
       break
       ;;
     *)
       DBDrop=$option2
-      read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
-      if [[ "$dropFlag" =~ "yes" ]]; then
-        if [ -d "$DBDrop" ]; then
+      if [[ -d "$DBDrop" ]]; then
+        read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
+        if [[ "$dropFlag" =~ "yes" ]]; then
           rm -r "$DBDrop"
           echo "$DBDrop is successfully dropped"
         else
@@ -112,7 +122,7 @@ function dropDB() {
         fi
       else
         echo "Database with number $REPLY does not exist."
-        echo "Please enter valid name or number for the database you want to drop: "
+        echo "Please enter valid number for the database you want to drop: "
       fi
       ;;
     esac
@@ -129,10 +139,16 @@ function checkDB() {
 }
 
 
+# ===========================
+# Table functions
+# ===========================
+# need to implement createTable, insertTable, selectTable, removeTable.
+# drop and list is done
 
-function accessDB() {
+
+function accessTables() {
   echo "Welcome to $1 database"
-  select option3 in "Create table" "List tables" "Select table" "Drop table" "Exit"; do
+  select option3 in "Create table" "List tables" "Insert into table" "Select table" "Remove from table" "Drop table" "Exit"; do
     case $option3 in
     "Create table")
       createTable
@@ -140,8 +156,14 @@ function accessDB() {
     "List tables")
       listTables
       ;;
+    "Insert into table")
+      insertTable
+      ;;
     "Select table")
       selectTable
+      ;;
+    "Remove from table")
+      removeTable
       ;;
     "Drop table")
       dropTable
@@ -155,12 +177,15 @@ function accessDB() {
     esac
   done
 }
+
+# implement (int, str, primary key) in metadata file, and tablename validation
 function createTable() {
   read -p "Please enter the name of the table you want to create: " tableName
   if [ -f "./$tableName" ]; then
     echo "Table $tableName already exists"
     return
   fi
+  # implement (int, str, primary key) in metadata file, and tablename validation
   touch "$tableName"
   echo "Table $tableName is successfully created"
 }
@@ -171,39 +196,102 @@ function listTables() {
   ls -p | grep -v / | grep -v "^\."
 }
 
-function selectTable() {
-  # implement select logic (queries)
-  files=$(ls -p | grep -v / | grep -v "^\.")
-  select option4 in "$files"; do
-    echo "Please enter the name or number of the table you want: "
+
+# implement insert logic
+function insertTable() {
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  select option4 in "$tables"; do
+    echo "Please enter the name or number of the table you want to insert into: "
     case $option4 in
     +[0-9]*[0-9])
-    echo
-      # TBConnect=$option4
-      # if [ -f "./$TBConnect" ]; then
-      #   echo "Connected to $TBConnect"
-      # else
-      #   echo "Table $TBConnect does not exist."
-      # fi
+      tableName=$option4
+      if [ -f "./$tableName" ]; then
+        # implement insert logic
+        echo "Data inserted successfully"
+        break
+      else
+        echo "Table $tableName does not exist."
+      fi
+      ;;
+    *)
+      echo "Invalid option. Please try again."
+      ;;
+    esac
+  done
+}
+
+function selectTable() {
+  # implement select logic (mina nagy youtube) (all, equal (by id or name), bonus is < or >), projecion is bonus
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  select option4 in "$tables" "Exit"; do
+    echo "Please enter the name or number of the table you want: "
+    case $option4 in
+    "Exit")
+      echo "Exiting..."
+      break
+      ;;
+    *)
+      if [ -f "./$option4" ]; then
+        echo "Connected to $option4"
+        # implement select logic (mina nagy youtube) (all, equal (by id or name), bonus is < or >), projecion is bonus
+      else
+        echo "Table with number $REPLY does not exist."
+      fi
       break
       ;;
     esac
   done
 }
 
+function removeTable() {
+  # implement remove logic
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  select option4 in "$tables" "Exit"; do
+    echo "Please enter the name or number of the table you want: "
+    case $option4 in
+    "Exit")
+      echo "Exiting..."
+      break
+      ;;
+    *)
+      if [ -f "./$option4" ]; then
+        echo "Connected to $option4"
+        # implement remove logic
+      else
+        echo "Table with number $REPLY does not exist."
+      fi
+      break
+      ;;
+    esac
+  done
+}
+
+
+# drop table
 function dropTable() {
-  # make select
-  read -p "Please enter the name of the table you want to drop: " TBdrop
-  read -p "Are you sure you want to permanently drop $TBdrop? [y/n]: " dropFlag
-  if [[ "$dropFlag" == "y" ]]; then
-    if [ -f "$TBdrop" ]; then
-      rm "$TBdrop"
-      echo "$TBdrop is successfully dropped"
-    else
-      echo "Table $TBdrop does not exist."
-    fi
-  else
-    echo "Table drop operation cancelled."
-  fi
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  select TBdrop in "$tables" "Exit"; do
+    case $TBdrop in
+    "Exit")
+      echo "Exiting..."
+      break
+      ;;
+    *)
+      if [ -f "./$TBdrop" ]; then
+        read -p "Are you sure you want to permanently drop $TBdrop? [y/n]: " dropFlag
+        if [[ "$dropFlag" == "y" ]]; then
+          rm "$TBdrop"
+          echo "$TBdrop is successfully dropped"
+          break
+        else
+          echo "Table drop operation cancelled."
+          break
+        fi
+      else
+        echo "Table $TBdrop does not exist."
+      fi
+      ;;
+    esac
+  done
 }
 main
