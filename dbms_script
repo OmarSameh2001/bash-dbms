@@ -17,6 +17,7 @@ function main {
     case $option1 in
     "Create database")
       createDB
+      echo $mainMenu
       ;;
     "List databases")
       checkDB
@@ -24,6 +25,7 @@ function main {
       if [ $flag -eq 0 ]; then 
         listDB
       fi
+      echo $mainMenu
       ;;
     "Connect to database")
       checkDB
@@ -31,6 +33,7 @@ function main {
       if [ $flag -eq 0 ]; then
         connectDB
       fi
+      echo $mainMenu
       ;;
     "Drop database")
       checkDB
@@ -38,6 +41,7 @@ function main {
       if [ $flag -eq 0 ]; then
         dropDB
       fi
+      echo $mainMenu
       ;;
     "Exit")
       break
@@ -76,7 +80,6 @@ function connectDB() {
     case $option2 in
     "Exit")
       echo "Exiting..."
-      echo $mainMenu
       break
       ;;
     *)
@@ -88,7 +91,6 @@ function connectDB() {
         # after exit accessTables (disconnect)
         cd ..
         echo "Disconnected from DB $DBConnect"
-        echo $mainMenu
         break
       else
         # $REPLY is the selected number
@@ -108,23 +110,23 @@ function dropDB() {
     case $option2 in
     "Exit")
       echo "Exiting..."
-      echo $mainMenu
       break
       ;;
     *)
       DBDrop=$option2
       if [[ -d "$DBDrop" ]]; then
         read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
-        if [[ "$dropFlag" =~ "yes" ]]; then
+        if [[ "yes" =~ "$dropFlag" ]]; then
           rm -r "$DBDrop"
           echo "$DBDrop is successfully dropped"
         else
-          echo "Database $DBDrop does not exist."
+          echo "Database drop cancelled."
         fi
       else
         echo "Database with number $REPLY does not exist."
         echo "Please enter valid number for the database you want to drop: "
       fi
+      break
       ;;
     esac
   done
