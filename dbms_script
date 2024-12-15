@@ -1,18 +1,21 @@
 #!/bin/bash
 
+# variable for base directory
+BaseDir=$(pwd)
+DBCount=$(ls -d */ | wc -l)
 # variable for exit message
 mainMenu="1)Create database 2)List databases 3)Connect to database 4)Drop database 5)Exit"
 function main {
-  # check if current directory is bash-dbms
-  # remove 
-  if [ -e ~/dev/bash-dbms ]; then
-    cd ~/dev/bash-dbms
-  fi
   # start menu
   echo "Welcome to ITI DBMS"
+  echo "Working directory: $BaseDir"
+  echo "This directory contains $DBCount databases"
+  echo "=========================="
+
   select option1 in "Create database" "List databases" "Connect to database" "Drop database" "Exit"; do
-    if [ -e ~/dev/bash-dbms ]; then
-      cd ~/dev/bash-dbms
+    if [ $(pwd) != $BaseDir ]; then
+      cd ${BaseDir}
+      echo "returned to base directory: $BaseDir"
     fi
     case $option1 in
     "Create database")
@@ -56,13 +59,27 @@ function main {
 # create database
 # add db name validation
 function createDB() {
-  read -p "Please enter your DB name: " DBName
-  if [ -d "./$DBName" ]; then
-    echo "$DBName already exists"
-    return
-  fi
-  mkdir "$DBName"
-  echo "Successfully created $DBName"
+  while true
+  do
+    read -p "Please enter your DB name: " DBName
+    if [[ $DBName =~ ^exit$ ]] ; then
+      break
+    fi
+    # check if name starts with letter and replace spaces with _
+    if [[ ${DBName:0:1} =~ [a-zA-Z] ]] ; then
+      DBName=${DBName// /_}
+    else
+      echo "Name should start with a letter"
+      continue
+    fi
+    if [ -d "./$DBName" ] ; then
+      echo "$DBName already exists"
+      continue
+    fi
+    mkdir "$DBName"
+    echo "Successfully created $DBName"
+    break
+  done
 }
 
 # list databases
