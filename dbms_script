@@ -51,6 +51,7 @@ function main {
       ;;
     *)
       echo "Invalid option. Please try again."
+      echo $mainMenu
       ;;
     esac
   done
@@ -62,14 +63,15 @@ function createDB() {
   while true
   do
     read -p "Please enter your DB name: " DBName
-    if [[ $DBName =~ ^exit$ ]] ; then
+    if [[ 'exit' =~ $DBName ]] ; then
+      echo "Exiting..."
       break
     fi
     # check if name starts with letter and replace spaces with _
-    if [[ ${DBName:0:1} =~ [a-zA-Z] ]] ; then
+    if [[ ${DBName:0:1} =~ [a-zA-Z] ]] && [[ $DBName =~ ^[a-zA-Z0-9[:space:]]*$ ]] ; then
       DBName=${DBName// /_}
     else
-      echo "Name should start with a letter"
+      echo "Name should start with a letter and has no special characters"
       continue
     fi
     if [ -d "./$DBName" ] ; then
@@ -86,14 +88,16 @@ function createDB() {
 function listDB() {
   echo "Databases list:"
   echo "=========================="
-  ls -d */ | sed 's|[/,]||g'
+  # multi line
+  ls -d */ | sed 's/[/]/ /g'
+  echo "=========================="
 }
 
 # connect to database by cd to its directory
 function connectDB() {
-  databases=$(ls -d */ | sed 's|[/,]||g')
+  getDB
   echo "Please enter the number of the database you want: "
-  select option2 in "$databases" "Exit"; do
+  select option2 in "${databases[@]}" "Exit"; do
     case $option2 in
     "Exit")
       echo "Exiting..."
@@ -121,11 +125,11 @@ function connectDB() {
 
 # drop database
 function dropDB() {
-  databases=$(ls -d */ | sed 's|[/,]||g')
+  getDB
   echo "Please enter the number of the database you want to drop: "
-  select option2 in "$databases" "Exit"; do
+  select option2 in "${databases[@]}" "Exit to main menu"; do
     case $option2 in
-    "Exit")
+    "Exit to main menu")
       echo "Exiting..."
       break
       ;;
@@ -136,14 +140,15 @@ function dropDB() {
         if [[ "yes" =~ "$dropFlag" ]]; then
           rm -r "$DBDrop"
           echo "$DBDrop is successfully dropped"
+          break
         else
           echo "Database drop cancelled."
+          break
         fi
       else
         echo "Database with number $REPLY does not exist."
         echo "Please enter valid number for the database you want to drop: "
       fi
-      break
       ;;
     esac
   done
@@ -156,6 +161,11 @@ function checkDB() {
     echo "No databases found."
     return 1
   fi
+}
+
+function getDB() {
+  databases=($(ls -d */ | sed 's/[/]//g'))
+  return
 }
 
 
