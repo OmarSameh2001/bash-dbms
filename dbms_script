@@ -215,21 +215,17 @@ function createTable() {
   while true
 
     do
-    declare -i colNum=0
-    read -p "Enter the number of columns in the table " colNum
-    if [[ colNum =~ ^[0-9] ]]
-    then
+    #declare -i colNum=0
+    read -p "Enter the number of columns in the table: " colNum
+    if [[ $colNum =~ ^[0-9]+$ && $colNum -gt 0 ]]; then
       echo $colNum
       break
     else
-      echo "Error Number of columns must be a number"
+      echo "Error: Number of columns must be a positive integer"
     fi
     done
 
-    
-    
-  
-  
+
   # implement (int, str, primary key) in metadata file, and tablename validation
   touch "$tableName"
   echo "Table $tableName is successfully created"
