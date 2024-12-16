@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # variable for exit message
+shopt -s extglob
 mainMenu="1)Create database 2)List databases 3)Connect to database 4)Drop database 5)Exit"
 function main {
   # check if current directory is bash-dbms
@@ -151,31 +152,34 @@ function checkDB() {
 
 function accessTables() {
   echo "Welcome to $1 database"
-  select option3 in "Create table" "List tables" "Insert into table" "Select table" "Remove from table" "Drop table" "Exit"; do
+  menu="1)Create table 2)List tables 3)Drop Table 4)Insert into Table 5)Select From Table 6)Delete From Table 7)Exit"
+  PS3="Please select a number from the menu: "
+  select option3 in "Create table" "List tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Exit"; do
     case $option3 in
     "Create table")
       createTable
+      echo $menu
       ;;
     "List tables")
       listTables
       ;;
-    "Insert into table")
+    "Drop Table")
       insertTable
       ;;
-    "Select table")
+    "Insert into Table")
       selectTable
       ;;
-    "Remove from table")
+    "Select From Table")
       removeTable
       ;;
-    "Drop table")
+    "Delete From Table")
       dropTable
       ;;
     "Exit")
       break
       ;;
     *)
-      echo "Invalid option. Please try again."
+      echo "Invalid entry. Please try again."
       ;;
     esac
   done
@@ -183,11 +187,49 @@ function accessTables() {
 
 # implement (int, str, primary key) in metadata file, and tablename validation
 function createTable() {
-  read -p "Please enter the name of the table you want to create: " tableName
-  if [ -f "./$tableName" ]; then
+  
+  exitFlag=false
+  while true
+    do
+  read -p "Please enter the name of the table you want to create or type exit: " tableName
+    case $tableName in
+    @([eE][xX][iI][tT]))
+      echo "exiting.."
+      return
+      ;;
+    +([a-zA-Z])*([a-zA-Z0-9|" "]))
+      tableName=${tableName/" "/"_"}
+      echo "$tableName is a valid name"
+      break
+      ;;
+    *)
+      echo "Name should start with only letters and can't have any special characters."
+      ;;
+    esac
+  done
+  if [ -e "./$tableName" ]; then
     echo "Table $tableName already exists"
     return
   fi
+
+  while true
+
+    do
+    declare -i colNum=0
+    read -p "Enter the number of columns in the table " colNum
+    if [[ colNum =~ ^[0-9] ]]
+    then
+      echo $colNum
+      break
+    else
+      echo "Error Number of columns must be a number"
+    fi
+    done
+
+    
+    
+  
+  
   # implement (int, str, primary key) in metadata file, and tablename validation
   touch "$tableName"
   echo "Table $tableName is successfully created"
