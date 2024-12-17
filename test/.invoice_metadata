@@ -1,3 +1,0 @@
-invoice_id:int:pk
-name:str
-description1:str

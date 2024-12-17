@@ -191,16 +191,16 @@ function accessTables() {
       listTables
       ;;
     "Drop Table")
-      insertTable
+      dropTable
       ;;
     "Insert into Table")
-      selectTable
+      insertTable
       ;;
     "Select From Table")
-      removeTable
+      selectTable
       ;;
     "Delete From Table")
-      dropTable
+      removeTable
       ;;
     "Exit")
       break
@@ -332,24 +332,31 @@ function listTables() {
 # implement insert logic
 function insertTable() {
   tables=$(ls -p | grep -v / | grep -v "^\.")
-  select option4 in "$tables"; do
-    echo "Please enter the name or number of the table you want to insert into: "
-    case $option4 in
-    +[0-9]*[0-9])
-      tableName=$option4
-      if [ -f "./$tableName" ]; then
-        # implement insert logic
-        echo "Data inserted successfully"
+  echo "Here are the tables in this database: "
+  echo "================================================================================"
+  echo $tables
+  echo "================================================================================"
+  
+  while true
+  do
+    read -p "Please enter the name of the table you want to insert into: " choice
+    case $choice in
+    +([a-zA-Z])*([a-zA-Z0-9|"_"]))
+      tableName=$choice
+      if [ -f "./$tableName" ]
+      then
+        
+        echo "Data inserted successfully"      
         break
       else
         echo "Table $tableName does not exist."
       fi
       ;;
     *)
-      echo "Invalid option. Please try again."
-      ;;
+      echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
     esac
   done
+  
 }
 
 function selectTable() {
