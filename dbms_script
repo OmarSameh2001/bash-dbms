@@ -60,6 +60,9 @@ function main {
 
 # create database
 # add db name validation
+
+
+
 function createDB() {
   while true
   do
@@ -252,13 +255,18 @@ function createTable() {
         echo "Error: Number of columns must be a positive integer"
       fi
     done
-    pk=0
+
+
     for ((i=0;i<$colNum;i++))
     do
       line=""
-      while true
+
+      if [[ $i -eq 0 ]]
+      then
+      echo $i
+        while true
         do
-          read -p "Please enter column name: " colName
+          read -p "Please enter the name of you primary key column " colName
           case $colName in
           +([a-zA-Z])*([a-zA-Z0-9|" "]))
             colName=${colName/" "/"_"}
@@ -269,12 +277,11 @@ function createTable() {
             echo "column Name should start with only letters and can't have any special characters."
             ;;
           esac
-      done
+        done
 
-
-      while true
+        while true
         do
-          read -p "Please enter column type (int/str): " colType
+          read -p "Please enter the primary key column type (int/str): " colType
           case $colType in
           "int")
             line+=:$colType
@@ -289,30 +296,48 @@ function createTable() {
             echo "Invalid entry, please enter (int/str)."
             ;;
           esac
-      done
+        done
+      line+=:pk
+      echo "hello after pk"
 
-      if [[ $pk -eq 0 ]]
-      then
-              while true
-              do
-                read -p "Do you want to make this column a primary key? (y/n)" pkCheck
-                case $pkCheck in
-                @([yY]))
-                  line+=:pk
-                  pk=1
-                  break
-                  ;;
-                @([nN]))
-                  line+=:pk
-                  pk=1
-                  break
-                  ;;
-                *)
-                  echo "invalid entry, please entry (y/n)"
-                esac
-              done
+      else
+        while true
+          do
+            read -p "Please enter the name of the column " colName
+            case $colName in
+            +([a-zA-Z])*([a-zA-Z0-9|" "]))
+              colName=${colName/" "/"_"}
+              line+=$colName
+              break
+              ;;
+            *)
+              echo "column Name should start with only letters and can't have any special characters. "
+              ;;
+            esac
+          done
+
+        while true
+          do
+            read -p "Please enter column type (int/str): " colType
+            case $colType in
+            "int")
+              line+=:$colType
+              break
+              ;;
+
+            "str")
+              line+=:$colType
+              break
+              ;;
+            *)
+              echo "Invalid entry, please enter (int/str)."
+              ;;
+            esac
+        done
+
       fi
-      echo $line >> .$tableName"_metadata"
+    echo $line >> .$tableName"_metadata"
+
     done
 
     
@@ -330,6 +355,11 @@ function listTables() {
 
 
 # implement insert logic
+# pseudocode:
+# 1) ask user to enter name of table he want to insert to.
+# 2) perform name validation.
+# 3)get the pk column from metadata.
+
 function insertTable() {
   tables=$(ls -p | grep -v / | grep -v "^\.")
   echo "Here are the tables in this database: "
@@ -345,7 +375,40 @@ function insertTable() {
       tableName=$choice
       if [ -f "./$tableName" ]
       then
+        # awk -F : ' 
+        #   begin{types=""} 
+        #   {
+        #     print $2
+            
+        #   } 
+        #   end{} 
+        # ' ./"."$tableName"_metadata"  
+        while IFS=":" read -r name type pk; 
+        do
+          while true
+          do
+            read -p "Please insert $type for column $name " input
+            if [[ $input -eq " " ]]
+             then
+              echo "Error please enter anything. "
+            else
+              if [[ $type -eq "str" ]]
+              then
+              $type: >> ./$tableName
+              break
+              fi
+            fi  
+
+
+
+            
+            
+            
+
+          done
+          
         
+        done <./"."$tableName"_metadata"
         echo "Data inserted successfully"      
         break
       else
