@@ -1,0 +1,3 @@
+inv_id:str:pk
+name:str
+description:str

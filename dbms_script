@@ -217,53 +217,42 @@ function accessTables() {
 
 # implement (int, str, primary key) in metadata file, and tablename validation
 function createTable() {
-  
-  
   while true
     do
-  read -p "Please enter the name of the table you want to create or type exit: " tableName
-    case $tableName in
-    @([eE][xX][iI][tT]))
-      echo "exiting.."
-      return
-      ;;
-    +([a-zA-Z])*([a-zA-Z0-9|" "]))
-      tableName=${tableName/" "/"_"}
-      echo "$tableName is a valid name"
-      break
-      ;;
-    *)
-      echo "Name should start with only letters and can't have any special characters."
-      ;;
-    esac
-  done
+      read -p "Please enter the name of the table you want to create or type exit: " tableName
+      case $tableName in
+        @([eE][xX][iI][tT]))
+          echo "exiting.."
+          return
+          ;;
+        +([a-zA-Z])*([a-zA-Z0-9|" "]))
+          tableName=${tableName/" "/"_"}
+          break
+          ;;
+        *)
+          echo "Name should start with only letters and can't have any special characters."
+          ;;
+      esac
+    done
   if [ -e "./$tableName" ]; then
     echo "Table $tableName already exists"
     return
   else
-
-  
-
     while true
-
       do
-      read -p "Enter the number of columns in the table: " colNum
-      if [[ $colNum =~ ^[0-9]+$ && $colNum -gt 0 ]]; then
-        echo $colNum
-        break
-      else
-        echo "Error: Number of columns must be a positive integer"
-      fi
-    done
-
-
+        read -p "Enter the number of columns in the table: " colNum
+        if [[ $colNum =~ ^[0-9]+$ && $colNum -gt 0 ]]; then
+          break
+        else
+          echo "Error: Number of columns must be a positive integer"
+        fi
+      done
     for ((i=0;i<$colNum;i++))
     do
       line=""
 
       if [[ $i -eq 0 ]]
       then
-      echo $i
         while true
         do
           read -p "Please enter the name of you primary key column " colName
@@ -297,13 +286,12 @@ function createTable() {
             ;;
           esac
         done
-      line+=:pk
-      echo "hello after pk"
+        line+=:pk
 
       else
         while true
           do
-            read -p "Please enter the name of the column " colName
+            read -p "Please enter the name of the column: " colName
             case $colName in
             +([a-zA-Z])*([a-zA-Z0-9|" "]))
               colName=${colName/" "/"_"}
@@ -330,7 +318,7 @@ function createTable() {
               break
               ;;
             *)
-              echo "Invalid entry, please enter (int/str)."
+              echo "Invalid entry, please enter (int/str). "
               ;;
             esac
         done
@@ -344,6 +332,7 @@ function createTable() {
     # implement (int, str, primary key) in metadata file, and tablename validation
     touch "$tableName"
     echo "Table $tableName is successfully created"
+    echo "================================================================================"
   fi
 }
 
@@ -370,18 +359,20 @@ function insertTable() {
   do
     read -p "Please enter the name of the table you want to insert into: " choice
     case $choice in
+    #to verify first character to be a letter and to accept letters , numbers and underscore.
       +([a-zA-Z])*([a-zA-Z0-9|"_"]))
         tableName=$choice
         if [ -f "./$tableName" ]
         then
           types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
           names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+          #to change string to an array. ==> hello my friend --> [hello,my,friend]
           namesArray=($names)
           typesArray=($types)
           # echo ${namesArray[@]}
           # echo ${typesArray[@]}
           numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
-          echo "We have $numberOfColumns columns in this table"
+          echo "We have $numberOfColumns columns in table: $tableName "
           
           newTableLine=""
           for (( i=0;i<numberOfColumns;i++ ))
@@ -394,17 +385,14 @@ function insertTable() {
                 read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
                 if [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];
                 then
-                  echo "$columnInput is valid"
                   previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-                  previousIdSize=$(awk -F : ' {} END {print NR}' ./$tableName )
                   if [[ $i -eq 0 ]]
                   then
-                    echo "We have previous ids : $previousIds "
                     for previous in $previousIds
                     do
                       if [[ "$previous" == "$columnInput" ]]
                       then
-                        echo "error $columnInput already exists Please type try another id"
+                        echo "Error: $columnInput already exists, Please type try another id "
                         duplicateFlag="true"
                         break
                       fi
@@ -432,11 +420,46 @@ function insertTable() {
                   echo "Error ${namesArray[$i]} should be integer number "
                 fi
               done
-              
+            #to handle if the column is a string.
             else
-              read -p "Enter the ${typesArray[$i]} for column ${namesArray[$i]}: " columnInput
-              echo "the string input: $columnInput for ${namesArray[$i]} is valid "
-              newTableLine+=":$columnInput"
+              while true
+              do
+                duplicateFlag=false
+                read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
+                  #change all string primary keys to lowercase before handling duplication
+                  columnInput=$(echo "$columnInput"| awk '{print tolower($0)}')
+                  previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                  if [[ $i -eq 0 ]]
+                  then
+                    for previous in $previousIds
+                    do
+                      if [[ "$previous" == "$columnInput" ]]
+                      then
+                        echo "Error: $columnInput already exists, Please type try another id "
+                        duplicateFlag="true"
+                        break
+                      fi
+                    done
+                    if [[ "$duplicateFlag" == "false" ]]
+                    then
+                      newTableLine+=$columnInput
+                      break
+                      continue
+                    fi
+                  else
+                    newTableLine+=":$columnInput"
+                  fi
+                  
+                  if [[ "$duplicateFlag" == "true" ]]
+                  then
+                    continue
+                  else
+                    break
+
+                    continue
+                  fi
+              done
+              
               continue
 
             fi
@@ -446,16 +469,10 @@ function insertTable() {
 
           done
           echo $newTableLine >> ./$tableName
-          
-          # if [[ "$type" == "int" ]]
-          # then
-          #   echo "column $name is of type integer"
-          # else
-          #   echo "column $name is of type string"
-          # fi
-          
+
 
           echo "Data inserted successfully"
+          echo "================================================================================"
           break
         else
           echo "Error: Table doesn't exist, please try again. "
