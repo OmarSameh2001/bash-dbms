@@ -366,57 +366,106 @@ function insertTable() {
   echo "================================================================================"
   echo $tables
   echo "================================================================================"
-  
   while true
   do
     read -p "Please enter the name of the table you want to insert into: " choice
     case $choice in
-    +([a-zA-Z])*([a-zA-Z0-9|"_"]))
-      tableName=$choice
-      if [ -f "./$tableName" ]
-      then
-        # awk -F : ' 
-        #   begin{types=""} 
-        #   {
-        #     print $2
-            
-        #   } 
-        #   end{} 
-        # ' ./"."$tableName"_metadata"  
-        while IFS=":" read -r name type pk; 
-        do
-          while true
+      +([a-zA-Z])*([a-zA-Z0-9|"_"]))
+        tableName=$choice
+        if [ -f "./$tableName" ]
+        then
+          types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+          names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+          namesArray=($names)
+          typesArray=($types)
+          # echo ${namesArray[@]}
+          # echo ${typesArray[@]}
+          numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
+          echo "We have $numberOfColumns columns in this table"
+          
+          newTableLine=""
+          for (( i=0;i<numberOfColumns;i++ ))
           do
-            read -p "Please insert $type for column $name " input
-            if [[ $input -eq " " ]]
-             then
-              echo "Error please enter anything. "
+            if [[ "${typesArray[$i]}" == "int" ]]
+            then
+              while true
+              do
+                duplicateFlag=false
+                read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
+                if [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];
+                then
+                  echo "$columnInput is valid"
+                  previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                  previousIdSize=$(awk -F : ' {} END {print NR}' ./$tableName )
+                  if [[ $i -eq 0 ]]
+                  then
+                    echo "We have previous ids : $previousIds "
+                    for previous in $previousIds
+                    do
+                      if [[ "$previous" == "$columnInput" ]]
+                      then
+                        echo "error $columnInput already exists Please type try another id"
+                        duplicateFlag="true"
+                        break
+                      fi
+                    done
+                    if [[ "$duplicateFlag" == "false" ]]
+                    then
+                      newTableLine+=$columnInput
+                      break
+                      continue
+                    fi
+                  else
+                  newTableLine+=":$columnInput"
+                  fi
+                  
+                  if [[ "$duplicateFlag" == "true" ]]
+                  then
+                    continue
+                  else
+                    break
+
+                    continue
+                  fi
+                  
+                else
+                  echo "Error ${namesArray[$i]} should be integer number "
+                fi
+              done
+              
             else
-              if [[ $type -eq "str" ]]
-              then
-              $type: >> ./$tableName
-              break
-              fi
-            fi  
+              read -p "Enter the ${typesArray[$i]} for column ${namesArray[$i]}: " columnInput
+              echo "the string input: $columnInput for ${namesArray[$i]} is valid "
+              newTableLine+=":$columnInput"
+              continue
+
+            fi
 
 
-
-            
-            
             
 
           done
+          echo $newTableLine >> ./$tableName
           
-        
-        done <./"."$tableName"_metadata"
-        echo "Data inserted successfully"      
-        break
-      else
-        echo "Table $tableName does not exist."
-      fi
-      ;;
-    *)
-      echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
+          # if [[ "$type" == "int" ]]
+          # then
+          #   echo "column $name is of type integer"
+          # else
+          #   echo "column $name is of type string"
+          # fi
+          
+
+          echo "Data inserted successfully"
+          break
+        else
+          echo "Error: Table doesn't exist, please try again. "
+        fi
+        ;;
+      *)
+        echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
+
+
+
     esac
   done
   
