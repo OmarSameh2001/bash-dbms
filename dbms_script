@@ -183,7 +183,7 @@ function accessTables() {
   echo "Welcome to $1 database in $(pwd)"
   tables=$(ls -p | grep -v / | grep -v "^\.")
   if [[ -n ${tables[@]} ]]; then
-    select option3 in "Create table" "List tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Exit"; do
+    select option3 in "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit"; do
     case $option3 in
     "Create table")
       createTable
@@ -203,6 +203,10 @@ function accessTables() {
       ;;
     "Select From Table")
       selectTable
+      tableMenu $1
+      ;;
+    "Update Table")
+      updateTable
       tableMenu $1
       ;;
     "Delete From Table")
@@ -362,6 +366,7 @@ function listTables() {
   echo "Tables list:"
   echo "=========================="
   ls -p | grep -v / | grep -v "^\."
+  echo "=========================="
 }
 
 
@@ -593,6 +598,106 @@ function selectTable() {
   done
 }
 
+function updateTable() {
+  tables=($(ls -p | grep -v / | grep -v "^\."))
+
+  echo "Please enter the name or number of the table you want to update: "
+  select updateTable in "${tables[@]}" "Exit"; do
+    case $updateTable in
+    "Exit")
+      echo "Exiting..."
+      break
+      ;;
+    *)
+      if [ -f "./$updateTable" ]; then
+        columns=($(awk -F ":" '{print $1}' "./.$updateTable"_metadata))
+
+        echo "Please enter the name of the column you want to update: "
+        select columnChoice in "${columns[@]}" "Exit"; do
+          case $columnChoice in
+          "Exit")
+            echo "Exiting..."
+            break 2
+            ;;
+          *)
+            if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
+              read -p "Please enter the value of $columnChoice to search: " searchValue
+              found=$(awk -F ":" -v reply="$REPLY" -v value="$searchValue" '$reply == value {print $0}' "./$updateTable")
+
+              if [ -n "$found" ]; then
+                echo "Here are all records with column $columnChoice = $searchValue in $updateTable"
+                echo "Choose the row you want to update:"
+                echo "============="
+
+                IFS=$'\n' read -r -d '' -a foundArray <<<"$found"
+
+                select rowToUpdate in "${foundArray[@]}" "Exit"; do
+                  case $rowToUpdate in
+                  "Exit")
+                    echo "Exiting..."
+                    break
+                    ;;
+                  *)
+                    if [ -n "$rowToUpdate" ]; then
+                      updatedRow=""
+                      for (( i=0; i<${#columns[@]}; i++ )); do
+                        read -p "Enter new value for column ${columns[$i]} (Current: $(echo $(awk -F ":" -v col="$((i+1))" -v row="$rowToUpdate" '$0==row {print $col}' "./$updateTable"))): " newValue
+                        # check for primary key
+                        if [ $i -eq 0 ]; then
+                          previousIds=$(awk -F : ' {print $1} ' ./$updateTable )
+                          while true; do
+                            duplicateFlag=false
+                            for previous in $previousIds; do
+                              if [[ "$previous" == "$newValue" ]]; then
+                                echo "Error: $newValue already exists, please try another id."
+                                duplicateFlag=true
+                                break
+                              fi
+                            done
+                            if [[ "$duplicateFlag" == "false" ]]; then
+                              echo "Unique value inserted: $newValue"
+                              break
+                            else
+                              read -p "Enter new value for column ${columns[$i]} (Current: $(echo $(awk -F ":" -v col="$((i+1))" -v row="$rowToUpdate" '$0==row {print $col}' "./$updateTable"))): " newValue
+                            fi
+                          done
+                          updatedRow+="$newValue"
+                        else
+                          updatedRow+=":$newValue"
+                        fi
+                      done
+                      awk -F ":" -v oldRow="$rowToUpdate" -v newRow="$updatedRow" 'BEGIN {OFS=FS} $0==oldRow {$0=newRow} {print}' "./$updateTable" > temp && mv temp "./$updateTable"
+                      echo "Row updated successfully."
+                      break
+                    else
+                      echo "Invalid selection. Please try again."
+                    fi
+                    ;;
+                  esac
+                done
+
+                echo "Record updated successfully."
+                break 2
+              else
+                echo "No records found with column $columnChoice = $searchValue"
+                echo "Select another column number or $((${#columns[@]} + 1)) to exit"
+              fi
+            else
+              echo "Invalid column name."
+            fi
+            ;;
+          esac
+        done
+      else
+        echo "Table with number $REPLY does not exist."
+      fi
+      break
+      ;;
+    esac
+  done
+}
+
+
 function removeTable() {
   # implement remove logic
   tables=$(ls -p | grep -v / | grep -v "^\.")
@@ -645,7 +750,7 @@ function dropTable() {
   done
 }
 function tableMenu(){
-  tableMenu="Current DB: $1,\n1) Create table,\n2) List tables,\n3) Drop Table,\n4) Insert into Table,\n5) Select From Table,\n6) Delete From Table,\n7) Exit"
+  tableMenu="Current DB: $1,\n1)Create table\n2)List tables\n3)Insert into Table\n4)Select From Table\n5)Update Table\n6)Delete From Table\n7)Drop Table\n8)Exit"
   echo -e $tableMenu
 }
 
