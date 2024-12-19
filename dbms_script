@@ -206,7 +206,7 @@ function accessTables() {
       tableMenu $1
       ;;
     "Delete From Table")
-      removeTable
+      deleteFromTable
       tableMenu $1
       ;;
     "Exit")
@@ -593,25 +593,104 @@ function selectTable() {
   done
 }
 
-function removeTable() {
+function deleteFromTable() {
   # implement remove logic
   tables=$(ls -p | grep -v / | grep -v "^\.")
-  select option4 in "$tables" "Exit"; do
-    echo "Please enter the name or number of the table you want: "
-    case $option4 in
-    "Exit")
-      echo "Exiting..."
-      break
-      ;;
-    *)
-      if [ -f "./$option4" ]; then
-        echo "Connected to $option4"
-        # implement remove logic
-      else
-        echo "Table with number $REPLY does not exist."
-      fi
-      break
-      ;;
+  echo "Here are the tables in this database: "
+  echo "================================================================================"
+  echo $tables
+  echo "================================================================================"
+  while true ;do #outer while
+    read -p "Please enter the name of the table you want to Delete From: " choice
+    case $choice in
+      +([a-zA-Z])*([a-zA-Z0-9|"_"]))
+        tableName=$choice
+        if [ -f "./$tableName" ];then
+          echo "Table exists"
+          select choice2 in "By id" "By Column" "Exit"; do
+            case $choice2 in #second
+              "By id")
+                pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
+                pkName=$(awk -F : ' {if(NR==1){print $1}} ' ./"."$tableName"_metadata" )
+
+                if [[ "$pktype" == "int"  ]];then
+                  while true ;do #third
+                    idExistFlag=false
+                    read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
+                    if [[ $pkInput =~ ^[0-9]+$ && $pkInput -ge 0 ]]; then
+                      #check if the entered PK exists or not
+                      previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                      #change string to array
+                      previousIdsArray=($previousIds)
+                      previousIdsCount=$(awk -F : ' END {print NR}' ./$tableName )
+                      pkInputIndex=0
+                      for (( i=0;i<previousIdsCount;i++ ));do #fourth
+                        if [[ "${previousIdsArray[$i]}" == "$pkInput" ]];then
+                          idExistFlag=true
+                          ((pkInputIndex=$i+1))
+                          break #from fourth
+                        fi
+                      done
+                      if [[ "$idExistFlag" == "true" ]];then
+                        echo "$pkName is found sucessfully"
+                        sed -i "${pkInputIndex}d" ./$tableName
+                        echo "Row is deleted successfully"
+                        break #from third
+                      else
+                        echo "this $pkName is not found please try again."
+                      fi
+                      
+                      
+                    else
+                      echo "Error: Number must be a positive integer"
+                    fi
+                  done
+                else
+                  echo "Hello from str"
+                fi
+                break #from second
+                ;;
+              "By Column")
+                types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+                names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+                values=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+                namesArray=($names)
+                typesArray=($types)
+                select option5 in "${namesArray[@]}";do #five
+                  case $REPLY in
+                    [1-9]*)
+                      if (( $REPLY >= 1 && $REPLY <= ${#namesArray[@]} )); then # #is used to get the length of the array
+                        
+                        echo "you selected: $option5"
+                        
+                        break #from five
+                      else
+                        echo "Invalid selection. Please try again"
+                      fi
+
+                      ;;
+                    *)
+                      echo "please enter a valid number"
+                  
+                  esac
+                done
+                break #from second
+                ;;
+              "Exit")
+                echo "Exiting..."
+                break #from second case
+                ;;
+              *)
+                echo "Please enter a valid number from the menu"
+            esac
+          done
+          break #for the outer While true
+        else
+          echo "Error: Table doesn't exist, please try again. "
+        fi
+        ;;
+      *)
+        echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
     esac
   done
 }
