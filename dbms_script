@@ -537,7 +537,7 @@ function selectTable() {
                   break 3
                   ;;
                 *)
-                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 ]] then
+                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]] then
                   read -p "Please enter the value of $choice: " value
                   found=$(awk -F ":" -v reply="$REPLY" -v value="$value" '$reply == value {print $0}' "./$searchTable")
                   if [ -n "$found" ]; then
