@@ -21,7 +21,7 @@ function main {
     case $option1 in
     "Create database")
       createDB
-      echo $mainMenu
+      dbMenu
       ;;
     "List databases")
       checkDB
@@ -29,7 +29,7 @@ function main {
       if [ $flag -eq 0 ]; then 
         listDB
       fi
-      echo $mainMenu
+      dbMenu
       ;;
     "Connect to database")
       checkDB
@@ -37,7 +37,7 @@ function main {
       if [ $flag -eq 0 ]; then
         connectDB
       fi
-      echo $mainMenu
+      dbMenu
       ;;
     "Drop database")
       checkDB
@@ -45,22 +45,18 @@ function main {
       if [ $flag -eq 0 ]; then
         dropDB
       fi
-      echo $mainMenu
+      dbMenu
       ;;
     "Exit")
       break
       ;;
     *)
       echo "Invalid option. Please try again."
-      echo $mainMenu
+      dbMenu
       ;;
     esac
   done
 }
-
-# create database
-# add db name validation
-
 
 
 function createDB() {
@@ -171,6 +167,10 @@ function getDB() {
   return
 }
 
+function dbMenu(){
+  db="Current Directory: $BaseDir,\n1)Create database\n2)List databases\n3)Connect to database\n4)Drop database\n5)Exit"
+  echo -e $db
+}
 
 # ===========================
 # Table functions
@@ -181,34 +181,33 @@ function getDB() {
 
 function accessTables() {
   echo "Welcome to $1 database in $(pwd)"
-  menu="DB: $1,  1)Create table 2)List tables 3)Drop Table 4)Insert into Table 5)Select From Table 6)Delete From Table 7)Exit"
   tables=$(ls -p | grep -v / | grep -v "^\.")
   if [[ -n ${tables[@]} ]]; then
     select option3 in "Create table" "List tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Exit"; do
     case $option3 in
     "Create table")
       createTable
-      echo $menu
+      tableMenu $1
       ;;
     "List tables")
       listTables
-      echo $menu
+      tableMenu $1
       ;;
     "Drop Table")
       dropTable
-      echo $menu
+      tableMenu $1
       ;;
     "Insert into Table")
       insertTable
-      echo $menu
+      tableMenu $1
       ;;
     "Select From Table")
       selectTable
-      echo $menu
+      tableMenu $1
       ;;
     "Delete From Table")
       removeTable
-      echo $menu
+      tableMenu $1
       ;;
     "Exit")
       break
@@ -520,7 +519,7 @@ function selectTable() {
     *)
       if [ -f "./$searchTable" ]; then
         echo "Select condition:"
-        select selectCondition in "All" "By Column" "Exit"; do
+        select selectCondition in "All" "By Column" "Projection" "Exit"; do
           case $selectCondition in
           "All")
             echo "All data in $searchTable: " && cat ./"$searchTable" && echo ""
@@ -557,6 +556,28 @@ function selectTable() {
                 esac
               done
               break
+            ;;
+          "Projection")
+            columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
+                echo "Please enter the name of the column you want to project: "
+                select choice in "${columns[@]}" "Exit"; do
+                  case $choice in 
+                    "Exit")
+                      echo "Exiting..."
+                      break 3
+                      ;;
+                    *)
+                      if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]] then
+                        projection=$(awk -F ":" -v reply="$REPLY" '{print $reply "\n"}' "./$searchTable")
+                        echo "Projection for column $choice in table $searchTable: "
+                        echo "$projection"
+                        break 3
+                      else
+                        echo "wrong column name"
+                      fi
+                      ;;
+                esac
+                done
             ;;
           "Exit")
             echo "Exiting..."
@@ -623,4 +644,9 @@ function dropTable() {
     esac
   done
 }
+function tableMenu(){
+  tableMenu="Current DB: $1,\n1) Create table,\n2) List tables,\n3) Drop Table,\n4) Insert into Table,\n5) Select From Table,\n6) Delete From Table,\n7) Exit"
+  echo -e $tableMenu
+}
+
 main
