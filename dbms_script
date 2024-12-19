@@ -111,7 +111,6 @@ function connectDB() {
       DBConnect=$option2
       if [[ -d "$DBConnect" ]]; then
         cd "$DBConnect"
-        echo "Connected to $DBConnect"
         accessTables "$DBConnect"
         # after exit accessTables (disconnect)
         cd ..
@@ -181,10 +180,11 @@ function getDB() {
 
 
 function accessTables() {
-  echo "Welcome to $1 database"
+  echo "Welcome to $1 database in $(pwd)"
   menu="1)Create table 2)List tables 3)Drop Table 4)Insert into Table 5)Select From Table 6)Delete From Table 7)Exit"
-  PS3="Please select a number from the menu: "
-  select option3 in "Create table" "List tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Exit"; do
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  if [[ -n ${tables[@]} ]]; then
+    select option3 in "Create table" "List tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Exit"; do
     case $option3 in
     "Create table")
       createTable
@@ -200,7 +200,7 @@ function accessTables() {
       insertTable
       ;;
     "Select From Table")
-      selectTable
+      selectTable $tables
       ;;
     "Delete From Table")
       removeTable
@@ -212,7 +212,24 @@ function accessTables() {
       echo "Invalid entry. Please try again."
       ;;
     esac
+  done 
+  else
+    echo "To access the full menu please create a table"
+    select option3 in "Create table" "Exit"; do
+    case $option3 in
+    "Create table")
+      createTable
+      echo $menu
+      ;;
+    "Exit")
+      break
+      ;;
+    *)
+      echo "Invalid entry. Please try again."
+      ;;
+    esac
   done
+  fi
 }
 
 # implement (int, str, primary key) in metadata file, and tablename validation
@@ -221,7 +238,7 @@ function createTable() {
   
   while true
     do
-  read -p "Please enter the name of the table you want to create or type exit: " tableName
+  read -p "Please enter new table's name or type exit: " tableName
     case $tableName in
     @([eE][xX][iI][tT]))
       echo "exiting.."
@@ -423,23 +440,67 @@ function insertTable() {
 }
 
 function selectTable() {
-  # implement select logic (mina nagy youtube) (all, equal (by id or column), bonus is < or >), projecion is bonus
-  tables=$(ls -p | grep -v / | grep -v "^\.")
-  select option4 in "$tables" "Exit"; do
-    echo "Please enter the name or number of the table you want: "
-    case $option4 in
+  tables=$1
+  echo "Please enter the name or number of the table you want: "
+  select searchTable in "${tables[@]}" "Exit"; do
+    case $searchTable in
     "Exit")
       echo "Exiting..."
       break
       ;;
     *)
-      if [ -f "./$option4" ]; then
-        echo "Connected to $option4"
-        # implement select logic (mina nagy youtube) (all, equal (by id or column), bonus is < or >), projecion is bonus
+      if [ -f "./$searchTable" ]; then
+        echo "Select condition:"
+        select selectCondition in "All" "By Column" "Exit"; do
+          case $selectCondition in
+          "All")
+            echo "All data in $searchTable: " && cat ./"$searchTable" && echo ""
+            break
+            ;;
+          "By Column")
+              columns=()
+              while IFS=: read -r column _; do
+                columns+=("$column")
+              done <./."$searchTable"_metadata
+              echo "Please enter the name of the column you want: "
+              select choice in "${columns[@]}" "Exit"; do
+                case $choice in
+                "Exit")
+                  echo "Exiting..."
+                  break
+                  ;;
+                *)
+                if [[ $REPLY -le ${#columns[@]} ]]; then
+                  read -p "Please enter the value of $choice: " value
+                  # awk -F ":" '$1 == "'"$choice"'" && $2 == "'"$value"'" {print}' ./"$searchTable"
+                  # use bash not awk on $reply column
+                  # previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                  found=$(awk -F ":" -v reply="$REPLY" -v value="$value" '$reply == value {print $0}' "./$searchTable")
+                  if [ -n "$found" ]; then
+                    echo "Here is all records with column $choice = $value"
+                    echo "============="
+                    echo "$found"
+                    echo "============="
+                  else
+                    echo "No records found with column $choice = $value"
+                    echo "Type another value to search for $choice"
+                  fi
+                else
+                  echo "Invalid column name."
+                fi
+                  ;;
+                esac
+              done
+            ;;
+          "Exit")
+            echo "Exiting..."
+            break
+            ;;
+          esac
+        done
       else
         echo "Table with number $REPLY does not exist."
       fi
-      break
       ;;
     esac
   done
