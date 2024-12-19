@@ -527,19 +527,17 @@ function selectTable() {
             break 2
             ;;
           "By Column")
-              columns=()
-              while IFS=: read -r column _; do
-                columns+=("$column")
-              done <./."$searchTable"_metadata
-              echo "Please enter the name of the column you want: "
-              select choice in "${columns[@]}" "Exit"; do
+              columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
+              
+                echo "Please enter the name of the column you want: "
+                select choice in "${columns[@]}" "Exit"; do
                 case $choice in
                 "Exit")
                   echo "Exiting..."
                   break 3
                   ;;
                 *)
-                if [[ $REPLY -le ${#columns[@]} ]]; then
+                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 ]] then
                   read -p "Please enter the value of $choice: " value
                   found=$(awk -F ":" -v reply="$REPLY" -v value="$value" '$reply == value {print $0}' "./$searchTable")
                   if [ -n "$found" ]; then
@@ -550,7 +548,7 @@ function selectTable() {
                     break 3
                   else
                     echo "No records found with column $choice = $value"
-                    echo "Type another value to search for $choice"
+                    echo "Select another column number or $((${#columns[@]} + 1)) to exit"
                   fi
                 else
                   echo "Invalid column name."
