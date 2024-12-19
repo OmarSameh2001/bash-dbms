@@ -580,11 +580,16 @@ function deleteFromTable() {
                 namesArray=($names)
                 typesArray=($types)
                 select option5 in "${namesArray[@]}";do #five
-                  case ${option5} in
-                    1)
-                      echo "tables exist"
-                      echo "$option5"
-                      break #from five
+                  case $REPLY in
+                    [1-9]*)
+                      if (( $REPLY >= 1 && $REPLY <= ${#namesArray[@]} )); then # #is used to get the length of the array
+                        echo "you selected: $option5"
+                        
+                        break #from five
+                      else
+                        echo "Invalid selection. Please try again"
+                      fi
+
                       ;;
                     *)
                       echo "please enter a valid number"
