@@ -200,7 +200,7 @@ function accessTables() {
       insertTable
       ;;
     "Select From Table")
-      selectTable $tables
+      selectTable
       ;;
     "Delete From Table")
       removeTable
@@ -507,7 +507,7 @@ function insertTable() {
 }
 
 function selectTable() {
-  tables=$1
+  tables=($(ls -p | grep -v / | grep -v "^\."))
   echo "Please enter the name or number of the table you want: "
   select searchTable in "${tables[@]}" "Exit"; do
     case $searchTable in
@@ -539,12 +539,9 @@ function selectTable() {
                 *)
                 if [[ $REPLY -le ${#columns[@]} ]]; then
                   read -p "Please enter the value of $choice: " value
-                  # awk -F ":" '$1 == "'"$choice"'" && $2 == "'"$value"'" {print}' ./"$searchTable"
-                  # use bash not awk on $reply column
-                  # previousIds=$(awk -F : ' {print $1} ' ./$tableName )
                   found=$(awk -F ":" -v reply="$REPLY" -v value="$value" '$reply == value {print $0}' "./$searchTable")
                   if [ -n "$found" ]; then
-                    echo "Here is all records with column $choice = $value"
+                    echo "Here is all records with column $choice = $value in $searchTable"
                     echo "============="
                     echo "$found"
                     echo "============="
