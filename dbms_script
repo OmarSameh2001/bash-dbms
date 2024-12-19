@@ -181,7 +181,7 @@ function getDB() {
 
 function accessTables() {
   echo "Welcome to $1 database in $(pwd)"
-  menu="1)Create table 2)List tables 3)Drop Table 4)Insert into Table 5)Select From Table 6)Delete From Table 7)Exit"
+  menu="DB: $1,  1)Create table 2)List tables 3)Drop Table 4)Insert into Table 5)Select From Table 6)Delete From Table 7)Exit"
   tables=$(ls -p | grep -v / | grep -v "^\.")
   if [[ -n ${tables[@]} ]]; then
     select option3 in "Create table" "List tables" "Drop Table" "Insert into Table" "Select From Table" "Delete From Table" "Exit"; do
@@ -192,18 +192,23 @@ function accessTables() {
       ;;
     "List tables")
       listTables
+      echo $menu
       ;;
     "Drop Table")
       dropTable
+      echo $menu
       ;;
     "Insert into Table")
       insertTable
+      echo $menu
       ;;
     "Select From Table")
       selectTable
+      echo $menu
       ;;
     "Delete From Table")
       removeTable
+      echo $menu
       ;;
     "Exit")
       break
@@ -498,12 +503,9 @@ function insertTable() {
         ;;
       *)
         echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
-
-
-
     esac
   done
-  
+  return
 }
 
 function selectTable() {
@@ -522,7 +524,7 @@ function selectTable() {
           case $selectCondition in
           "All")
             echo "All data in $searchTable: " && cat ./"$searchTable" && echo ""
-            break
+            break 2
             ;;
           "By Column")
               columns=()
@@ -534,7 +536,7 @@ function selectTable() {
                 case $choice in
                 "Exit")
                   echo "Exiting..."
-                  break
+                  break 3
                   ;;
                 *)
                 if [[ $REPLY -le ${#columns[@]} ]]; then
@@ -545,6 +547,7 @@ function selectTable() {
                     echo "============="
                     echo "$found"
                     echo "============="
+                    break 3
                   else
                     echo "No records found with column $choice = $value"
                     echo "Type another value to search for $choice"
@@ -555,6 +558,7 @@ function selectTable() {
                   ;;
                 esac
               done
+              break
             ;;
           "Exit")
             echo "Exiting..."
