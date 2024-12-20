@@ -609,8 +609,8 @@ function selectTable() {
 }
 
 function updateTable() {
+  # get tables (list all except dir (/) and hidden files (\.))
   tables=($(ls -p | grep -v / | grep -v "^\."))
-
   echo "Please enter the name or number of the table you want to update: "
   select updateTable in "${tables[@]}" "Exit"; do
     case $updateTable in
@@ -632,15 +632,15 @@ function updateTable() {
           *)
             if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
               read -p "Please enter the value of $columnChoice to search: " searchValue
+              # check if the value is in the table
               found=$(awk -F ":" -v reply="$REPLY" -v value="$searchValue" '$reply == value {print $0}' "./$updateTable")
 
               if [ -n "$found" ]; then
                 echo "Here are all records with column $columnChoice = $searchValue in $updateTable"
                 echo "Choose the row you want to update:"
                 echo "============="
-
-                IFS=$'\n' read -r -d '' -a foundArray <<<"$found"
-
+                # convert to array to use select
+                foundArray=($found)
                 select rowToUpdate in "${foundArray[@]}" "Exit"; do
                   case $rowToUpdate in
                   "Exit")
@@ -651,27 +651,42 @@ function updateTable() {
                     if [ -n "$rowToUpdate" ]; then
                       updatedRow=""
                       for (( i=0; i<${#columns[@]}; i++ )); do
-                        read -p "Enter new value for column ${columns[$i]} (Current: $(echo $(awk -F ":" -v col="$((i+1))" -v row="$rowToUpdate" '$0==row {print $col}' "./$updateTable"))): " newValue
+                        currentValue=$(awk -F ":" -v col="$((i+1))" -v row="$rowToUpdate" '$0==row {print $col}' "./$updateTable")
+                        type=$(awk -F ":" -v col="$((i+1))" 'NR==col {print $2}' "./.$updateTable"_metadata)
+                        read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                        # check for type
+                        while true; do
+                          if [[ "$type" == "int" ]]; then
+                            if [[ ! "$newValue" =~ ^[0-9]+$ ]]; then
+                              echo "Error: $newValue is not an integer, please type integer."
+                              read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                              continue
+                            fi
+                          elif [[ ! "$newValue" =~ ^[a-zA-Z]+[a-zA-Z0-9_]*$ ]]; then
+                            echo "Error: $newValue is not a valid string, please type string."
+                            read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                            continue
+                          fi
+                          echo "$newValue is valid $type input for ${columns[$i]}"
+                          break
+                        done
                         # check for primary key
                         if [ $i -eq 0 ]; then
                           previousIds=$(awk -F : ' {print $1} ' ./$updateTable )
                           while true; do
-                            duplicateFlag=false
                             for previous in $previousIds; do
-                              if [[ "$previous" == "$newValue" ]]; then
+                              if [[ "$previous" == "$newValue" && "$currentValue" != "$newValue" ]]; then
                                 echo "Error: $newValue already exists, please try another id."
-                                duplicateFlag=true
+                                read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
                                 break
+                              else
+                                echo "$newValue is valid unique primary key input for ${columns[$i]}"
+                                break 2
                               fi
                             done
-                            if [[ "$duplicateFlag" == "false" ]]; then
-                              echo "Unique value inserted: $newValue"
-                              break
-                            else
-                              read -p "Enter new value for column ${columns[$i]} (Current: $(echo $(awk -F ":" -v col="$((i+1))" -v row="$rowToUpdate" '$0==row {print $col}' "./$updateTable"))): " newValue
-                            fi
                           done
                           updatedRow+="$newValue"
+                        # non primary key
                         else
                           updatedRow+=":$newValue"
                         fi
