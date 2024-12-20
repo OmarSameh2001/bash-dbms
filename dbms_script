@@ -595,8 +595,6 @@ function deleteFromTable() {
   tables=$(ls -p | grep -v / | grep -v "^\.")
   echo "Here are the tables in this database: "
   echo "================================================================================"
-  echo $tables
-  echo "================================================================================"
   tablesArray=($tables)
   PS3="Please select a number from the menu: "
   select option6 in "${tablesArray[@]}";do #outer select
