@@ -374,9 +374,6 @@ function listTables() {
 function insertTable() {
   tables=$(ls -p | grep -v / | grep -v "^\.")
   echo "Here are the tables in this database: "
-  echo "================================================================================"
-  echo $tables
-  echo "================================================================================"
   while true
   do
     read -p "Please enter the name of the table you want to insert into: " choice
@@ -600,30 +597,34 @@ function deleteFromTable() {
   echo "================================================================================"
   echo $tables
   echo "================================================================================"
-  while true ;do #outer while
-    read -p "Please enter the name of the table you want to Delete From: " choice
-    case $choice in
-      +([a-zA-Z])*([a-zA-Z0-9|"_"]))
-        tableName=$choice
-        if [ -f "./$tableName" ];then
-          echo "Table exists"
+  tablesArray=($tables)
+  PS3="Please select a number from the menu: "
+  select option6 in "${tablesArray[@]}";do #outer select
+    # read -p "Please enter the name of the table you want to Delete From: " choice
+    case $REPLY in
+      [1-9]*)
+        tableName=$option6
+        #Validation of outer select
+        if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} )); then
+          echo "================================================================================"
           select choice2 in "By id" "By Column" "All" "Exit"; do
             case $choice2 in #second
               "By id")
                 pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
                 pkName=$(awk -F : ' {if(NR==1){print $1}} ' ./"."$tableName"_metadata" )
-
+                #Incase we have int primary key
                 if [[ "$pktype" == "int"  ]];then
                   while true ;do #third
                     idExistFlag=false
                     read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
                     if [[ $pkInput =~ ^[0-9]+$ && $pkInput -ge 0 ]]; then
-                      #check if the entered PK exists or not
+                      #store all previous Ids in a variable
                       previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-                      #change string to array
+                      #change all previous Ids string to array
                       previousIdsArray=($previousIds)
                       previousIdsCount=$(awk -F : ' END {print NR}' ./$tableName )
                       pkInputIndex=0
+                      #Loop over all the previous ids to check if the entered PK exist or no.
                       for (( i=0;i<previousIdsCount;i++ ));do #fourth
                         if [[ "${previousIdsArray[$i]}" == "$pkInput" ]];then
                           idExistFlag=true
@@ -631,10 +632,11 @@ function deleteFromTable() {
                           break #from fourth
                         fi
                       done
+                      #if primary key exist we delete the whole row which include this Id using sed command,
                       if [[ "$idExistFlag" == "true" ]];then
-                        echo "$pkName is found sucessfully"
-                        sed -i "" "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed command
+                        sed -i "" "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
                         echo "Row is deleted successfully"
+                        echo "================================================================================"
                         break #from third
                       else
                         echo "this $pkName is not found please try again."
@@ -645,8 +647,6 @@ function deleteFromTable() {
                       echo "Error: Number must be a positive integer"
                     fi
                   done
-                else
-                  echo "Hello from str"
                 fi
                 break #from second
                 ;;
@@ -659,29 +659,37 @@ function deleteFromTable() {
                 select option5 in "${namesArray[@]}";do #five
                   case $REPLY in
                     [1-9]*)
+                      #validation of the select five.
                       if (( $REPLY >= 1 && $REPLY <= ${#namesArray[@]} )); then # #is used to get the length of the array
-                        echo "you selected: $option5"
-                        #get the index of the column the user wants to delete
+                        #get the fieldNumber of the column the user wants to delete
                         FieldNumber=$(awk -F : -v option="$option5" ' {if($1==option){print NR}} ' ./"."$tableName"_metadata" )
-                        echo "The index of selected column is $FieldNumber"
+                        #store all the values of the selected column.
                         columnValues=$(awk -F : -v fieldNumber="$FieldNumber" ' {print $fieldNumber} ' ./$tableName )
+                        #change from string to array.
                         columnValuesArray=($columnValues)
+                        #ask the user to enter the column value of the row he wants to delete.
                         while true ;do #six
                           columnExistflag=false
                           read -p "Please Enter $option5 of the row you want to delete : " colValueInput
-                          colInputIndex=0
+                          colInputIndexes=()
+                          #loop over all the column values to check if the entered column exist or no,
+                          #and store all columns index that match the user input in an array.
                           for (( i=0;i<${#columnValuesArray[@]};i++ ));do #seven
                             if [[ "${columnValuesArray[$i]}" == "$colValueInput" ]];then
                               columnExistflag=true
-                              ((colInputIndex=$i+1))
-                              break #from seven
+                              colInputIndexes+=($((i + 1))) #array.
                             fi
                           done
+                          echo "the colInputIndex to be delted are ${colInputIndexes[@]}"
                           if [[ "$columnExistflag" == "true" ]];then
-                            echo "$colInputIndex"
-                            echo "$colValueInput is found sucessfully"
-                            sed -i "" "${colInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed command
-                            echo "Row is deleted successfully"
+                            #loop over all the array of indexes starting from end
+                            # to prevent the rows from shifting upward when deleting using sed command
+                            # to delete all rows with index stored in the array.
+                            for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
+                              sed -i "" "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                              echo "Row is deleted successfully"
+                            done
+                            echo "================================================================================"
                             break #from six
                           else
                             echo "this $colValueInput is not found please try again."
@@ -707,8 +715,9 @@ function deleteFromTable() {
                   read -p "Are you sure that you want to delete the entire content of table $tableName? (y/n) " verification
                   case $verification in
                     [yY])
-                      sed -i "" "d" ./$tableName
+                      sed -i "" "d" ./$tableName #to delete the entire content of the file
                       echo "Deleted the entire content of $tableName. "
+                      echo "================================================================================"
                       break #from seven
                       ;;
                     [nN])
@@ -729,13 +738,13 @@ function deleteFromTable() {
                 echo "Please enter a valid number from the menu"
             esac
           done
-          break #for the outer While true
+          break #for the outer select true
         else
-          echo "Error: Table doesn't exist, please try again. "
+          echo "Error: Please enter a valid number from the menu and try again... "
         fi
         ;;
       *)
-        echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
+        echo "Error, Please enter a numbers only and try again... "
     esac
   done
 }
