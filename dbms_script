@@ -222,7 +222,7 @@ function accessTables() {
       tableMenu $1
       ;;
     "Delete From Table")
-      removeTable
+      deleteFromTable
       tableMenu $1
       ;;
     "Exit")
@@ -392,9 +392,6 @@ function listTables() {
 function insertTable() {
   tables=$(ls -p | grep -v / | grep -v "^\.")
   echo "Here are the tables in this database: "
-  echo "================================================================================"
-  echo $tables
-  echo "================================================================================"
   while true
   do
     read -p "Please enter the name of the table you want to insert into: " choice
@@ -554,7 +551,7 @@ function selectTable() {
                   break 3
                   ;;
                 *)
-                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]] then
+                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
                   read -p "Please enter the value of $choice: " value
                   found=$(awk -F ":" -v reply="$REPLY" -v value="$value" '$reply == value {print $0}' "./$searchTable")
                   if [ -n "$found" ]; then
@@ -585,7 +582,7 @@ function selectTable() {
                       break 3
                       ;;
                     *)
-                      if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]] then
+                      if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
                         projection=$(awk -F ":" -v reply="$REPLY" '{print $reply "\n"}' "./$searchTable")
                         echo "Projection for column $choice in table $searchTable: "
                         echo "$projection"
@@ -711,25 +708,321 @@ function updateTable() {
 }
 
 
-function removeTable() {
+function deleteFromTable() {
   # implement remove logic
   tables=$(ls -p | grep -v / | grep -v "^\.")
-  select option4 in "$tables" "Exit"; do
-    echo "Please enter the name or number of the table you want: "
-    case $option4 in
-    "Exit")
-      echo "Exiting..."
-      break
-      ;;
-    *)
-      if [ -f "./$option4" ]; then
-        echo "Connected to $option4"
-        # implement remove logic
-      else
-        echo "Table with number $REPLY does not exist."
-      fi
-      break
-      ;;
+  echo "Here are the tables in this database: "
+  echo "================================================================================"
+  echo $tables
+  echo "================================================================================"
+  tablesArray=($tables)
+  PS3="Please select a number from the menu: "
+  select option6 in "${tablesArray[@]}";do #outer select
+    # read -p "Please enter the name of the table you want to Delete From: " choice
+    case $REPLY in
+      [1-9]*)
+        tableName=$option6
+        #Validation of outer select
+        if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} )); then
+          echo "================================================================================"
+          select choice2 in "By id" "By Column" "All" "Exit"; do
+            case $choice2 in #second
+              "By id")
+                pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
+                pkName=$(awk -F : ' {if(NR==1){print $1}} ' ./"."$tableName"_metadata" )
+                #Incase we have int primary key
+                if [[ "$pktype" == "int"  ]];then
+                  while true ;do #third
+                    idExistFlag=false
+                    read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
+                    if [[ $pkInput =~ ^[0-9]+$ && $pkInput -ge 0 ]]; then
+                      #store all previous Ids in a variable
+                      previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                      #change all previous Ids string to array
+                      previousIdsArray=($previousIds)
+                      previousIdsCount=$(awk -F : ' END {print NR}' ./$tableName )
+                      pkInputIndex=0
+                      #Loop over all the previous ids to check if the entered PK exist or no.
+                      for (( i=0;i<previousIdsCount;i++ ));do #fourth
+                        if [[ "${previousIdsArray[$i]}" == "$pkInput" ]];then
+                          idExistFlag=true
+                          ((pkInputIndex=$i+1))
+                          break #from fourth
+                        fi
+                      done
+                      #if primary key exist we delete the whole row which include this Id using sed command,
+                      if [[ "$idExistFlag" == "true" ]];then
+                        sed -i "" "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                        echo "Row is deleted successfully"
+                        echo "================================================================================"
+                        break #from third
+                      else
+                        echo "this $pkName is not found please try again."
+                      fi
+                      
+                      
+                    else
+                      echo "Error: Number must be a positive integer"
+                    fi
+                  done
+                fi
+                break #from second
+                ;;
+              "By Column")
+                types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+                names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+                values=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+                namesArray=($names)
+                typesArray=($types)
+                select option5 in "${namesArray[@]}";do #five
+                  case $REPLY in
+                    [1-9]*)
+                      #validation of the select five.
+                      if (( $REPLY >= 1 && $REPLY <= ${#namesArray[@]} )); then # #is used to get the length of the array
+                        #get the fieldNumber of the column the user wants to delete
+                        FieldNumber=$(awk -F : -v option="$option5" ' {if($1==option){print NR}} ' ./"."$tableName"_metadata" )
+                        #store all the values of the selected column.
+                        columnValues=$(awk -F : -v fieldNumber="$FieldNumber" ' {print $fieldNumber} ' ./$tableName )
+                        #change from string to array.
+                        columnValuesArray=($columnValues)
+                        #ask the user to enter the column value of the row he wants to delete.
+                        while true ;do #six
+                          columnExistflag=false
+                          read -p "Please Enter $option5 of the row you want to delete : " colValueInput
+                          colInputIndexes=()
+                          #loop over all the column values to check if the entered column exist or no,
+                          #and store all columns index that match the user input in an array.
+                          for (( i=0;i<${#columnValuesArray[@]};i++ ));do #seven
+                            if [[ "${columnValuesArray[$i]}" == "$colValueInput" ]];then
+                              columnExistflag=true
+                              colInputIndexes+=($((i + 1))) #array.
+                            fi
+                          done
+                          echo "the colInputIndex to be delted are ${colInputIndexes[@]}"
+                          if [[ "$columnExistflag" == "true" ]];then
+                            #loop over all the array of indexes starting from end
+                            # to prevent the rows from shifting upward when deleting using sed command
+                            # to delete all rows with index stored in the array.
+                            for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
+                              sed -i "" "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                              echo "Row is deleted successfully"
+                            done
+                            echo "================================================================================"
+                            break #from six
+                          else
+                            echo "this $colValueInput is not found please try again."
+                          fi
+                        done
+                        
+                
+                        break #from five
+                      else
+                        echo "Invalid selection. Please try again"
+                      fi
+
+                      ;;
+                    *)
+                      echo "please enter a valid number"
+                  
+                  esac
+                done
+                break #from second
+                ;;
+              "All")
+                while true ; do #seven
+                  read -p "Are you sure that you want to delete the entire content of table $tableName? (y/n) " verification
+                  case $verification in
+                    [yY])
+                      sed -i "" "d" ./$tableName #to delete the entire content of the file
+                      echo "Deleted the entire content of $tableName. "
+                      echo "================================================================================"
+                      break #from seven
+                      ;;
+                    [nN])
+                      echo "Exiting..."
+                      break #from seven
+                      ;;
+                    *)
+                      echo "Error: Invalid input, please try again... "
+                  esac
+                done
+                break #from second case
+                ;;  
+              "Exit")
+                echo "Exiting..."
+                break #from second case
+                ;;
+              *)
+                echo "Please enter a valid number from the menu"
+            esac
+          done
+          break #for the outer select true
+        else
+          echo "Error: Please enter a valid number from the menu and try again... "
+        fi
+        ;;
+      *)
+        echo "Error, Please enter a numbers only and try again... "
+    esac
+  done
+}
+
+
+function deleteFromTable() {
+  # implement remove logic
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  echo "Here are the tables in this database: "
+  echo "================================================================================"
+  echo $tables
+  echo "================================================================================"
+  tablesArray=($tables)
+  PS3="Please select a number from the menu: "
+  select option6 in "${tablesArray[@]}";do #outer select
+    # read -p "Please enter the name of the table you want to Delete From: " choice
+    case $REPLY in
+      [1-9]*)
+        tableName=$option6
+        #Validation of outer select
+        if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} )); then
+          echo "================================================================================"
+          select choice2 in "By id" "By Column" "All" "Exit"; do
+            case $choice2 in #second
+              "By id")
+                pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
+                pkName=$(awk -F : ' {if(NR==1){print $1}} ' ./"."$tableName"_metadata" )
+                #Incase we have int primary key
+                if [[ "$pktype" == "int"  ]];then
+                  while true ;do #third
+                    idExistFlag=false
+                    read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
+                    if [[ $pkInput =~ ^[0-9]+$ && $pkInput -ge 0 ]]; then
+                      #store all previous Ids in a variable
+                      previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                      #change all previous Ids string to array
+                      previousIdsArray=($previousIds)
+                      previousIdsCount=$(awk -F : ' END {print NR}' ./$tableName )
+                      pkInputIndex=0
+                      #Loop over all the previous ids to check if the entered PK exist or no.
+                      for (( i=0;i<previousIdsCount;i++ ));do #fourth
+                        if [[ "${previousIdsArray[$i]}" == "$pkInput" ]];then
+                          idExistFlag=true
+                          ((pkInputIndex=$i+1))
+                          break #from fourth
+                        fi
+                      done
+                      #if primary key exist we delete the whole row which include this Id using sed command,
+                      if [[ "$idExistFlag" == "true" ]];then
+                        sed -i "" "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                        echo "Row is deleted successfully"
+                        echo "================================================================================"
+                        break #from third
+                      else
+                        echo "this $pkName is not found please try again."
+                      fi
+                      
+                      
+                    else
+                      echo "Error: Number must be a positive integer"
+                    fi
+                  done
+                fi
+                break #from second
+                ;;
+              "By Column")
+                types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+                names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+                values=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+                namesArray=($names)
+                typesArray=($types)
+                select option5 in "${namesArray[@]}";do #five
+                  case $REPLY in
+                    [1-9]*)
+                      #validation of the select five.
+                      if (( $REPLY >= 1 && $REPLY <= ${#namesArray[@]} )); then # #is used to get the length of the array
+                        #get the fieldNumber of the column the user wants to delete
+                        FieldNumber=$(awk -F : -v option="$option5" ' {if($1==option){print NR}} ' ./"."$tableName"_metadata" )
+                        #store all the values of the selected column.
+                        columnValues=$(awk -F : -v fieldNumber="$FieldNumber" ' {print $fieldNumber} ' ./$tableName )
+                        #change from string to array.
+                        columnValuesArray=($columnValues)
+                        #ask the user to enter the column value of the row he wants to delete.
+                        while true ;do #six
+                          columnExistflag=false
+                          read -p "Please Enter $option5 of the row you want to delete : " colValueInput
+                          colInputIndexes=()
+                          #loop over all the column values to check if the entered column exist or no,
+                          #and store all columns index that match the user input in an array.
+                          for (( i=0;i<${#columnValuesArray[@]};i++ ));do #seven
+                            if [[ "${columnValuesArray[$i]}" == "$colValueInput" ]];then
+                              columnExistflag=true
+                              colInputIndexes+=($((i + 1))) #array.
+                            fi
+                          done
+                          echo "the colInputIndex to be delted are ${colInputIndexes[@]}"
+                          if [[ "$columnExistflag" == "true" ]];then
+                            #loop over all the array of indexes starting from end
+                            # to prevent the rows from shifting upward when deleting using sed command
+                            # to delete all rows with index stored in the array.
+                            for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
+                              sed -i "" "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                              echo "Row is deleted successfully"
+                            done
+                            echo "================================================================================"
+                            break #from six
+                          else
+                            echo "this $colValueInput is not found please try again."
+                          fi
+                        done
+                        
+                
+                        break #from five
+                      else
+                        echo "Invalid selection. Please try again"
+                      fi
+
+                      ;;
+                    *)
+                      echo "please enter a valid number"
+                  
+                  esac
+                done
+                break #from second
+                ;;
+              "All")
+                while true ; do #seven
+                  read -p "Are you sure that you want to delete the entire content of table $tableName? (y/n) " verification
+                  case $verification in
+                    [yY])
+                      sed -i "" "d" ./$tableName #to delete the entire content of the file
+                      echo "Deleted the entire content of $tableName. "
+                      echo "================================================================================"
+                      break #from seven
+                      ;;
+                    [nN])
+                      echo "Exiting..."
+                      break #from seven
+                      ;;
+                    *)
+                      echo "Error: Invalid input, please try again... "
+                  esac
+                done
+                break #from second case
+                ;;  
+              "Exit")
+                echo "Exiting..."
+                break #from second case
+                ;;
+              *)
+                echo "Please enter a valid number from the menu"
+            esac
+          done
+          break #for the outer select true
+        else
+          echo "Error: Please enter a valid number from the menu and try again... "
+        fi
+        ;;
+      *)
+        echo "Error, Please enter a numbers only and try again... "
     esac
   done
 }
