@@ -1,17 +1,19 @@
 #!/bin/bash
 
-# variable for base directory
+# variable for base directory and database count
 BaseDir=$(pwd)
-DBCount=$(ls -d */ | wc -l)
-# variable for exit message
+DBCount=
+# for special characters validation
 shopt -s extglob
-mainMenu="1)Create database 2)List databases 3)Connect to database 4)Drop database 5)Exit"
+
+# Main function
 function main {
   # start menu
+  echo "=========================================="
   echo "Welcome to ITI DBMS"
   echo "Working directory: $BaseDir"
-  echo "This directory contains $DBCount databases"
-  echo "=========================="
+  echo "This directory contains $(ls -d */ | wc -l) databases"
+  echo "=========================================="
 
   select option1 in "Create database" "List databases" "Connect to database" "Drop database" "Exit"; do
     if [ $(pwd) != $BaseDir ]; then
@@ -59,6 +61,7 @@ function main {
 }
 
 
+# create database
 function createDB() {
   while true
   do
@@ -86,6 +89,7 @@ function createDB() {
 
 # list databases
 function listDB() {
+  echo "=========================="
   echo "Databases list:"
   echo "=========================="
   # multi line
@@ -96,7 +100,10 @@ function listDB() {
 # connect to database by cd to its directory
 function connectDB() {
   getDB
-  echo "Please enter the number of the database you want: "
+  echo "============================================================="
+  echo "Connecting to Database"
+  echo "Please enter the number of the database you want to connect: "
+  echo "============================================================="
   select option2 in "${databases[@]}" "Exit"; do
     case $option2 in
     "Exit")
@@ -125,10 +132,13 @@ function connectDB() {
 # drop database
 function dropDB() {
   getDB
+  echo "==========================================================="
+  echo "Dropping Database"
   echo "Please enter the number of the database you want to drop: "
-  select option2 in "${databases[@]}" "Exit to main menu"; do
+  echo "==========================================================="
+  select option2 in "${databases[@]}" "Exit"; do
     case $option2 in
-    "Exit to main menu")
+    "Exit")
       echo "Exiting..."
       break
       ;;
@@ -162,25 +172,27 @@ function checkDB() {
   fi
 }
 
+# get all databases
 function getDB() {
   databases=($(ls -d */ | sed 's/[/]//g'))
   return
 }
 
+# print db menu again
 function dbMenu(){
-  db="Current Directory: $BaseDir,\n1)Create database\n2)List databases\n3)Connect to database\n4)Drop database\n5)Exit"
+  db="==========================\nCurrent Directory: $BaseDir\nThis directory contains $(ls -d */ | wc -l) databases.\n==========================\n1)Create database\n2)List databases\n3)Connect to database\n4)Drop database\n5)Exit"
   echo -e $db
 }
 
 # ===========================
 # Table functions
 # ===========================
-# need to implement createTable, insertTable, selectTable, removeTable.
-# drop and list is done
 
 
 function accessTables() {
+  echo "=========================================="
   echo "Welcome to $1 database in $(pwd)"
+  echo "=========================================="
   tables=$(ls -p | grep -v / | grep -v "^\.")
   if [[ -n ${tables[@]} ]]; then
     select option3 in "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit"; do
@@ -190,7 +202,7 @@ function accessTables() {
       tableMenu $1
       ;;
     "List tables")
-      listTables
+      listTables $1
       tableMenu $1
       ;;
     "Drop Table")
@@ -363,7 +375,8 @@ function createTable() {
 }
 
 function listTables() {
-  echo "Tables list:"
+  echo "=========================="
+  echo "Tables list in $1 database:"
   echo "=========================="
   ls -p | grep -v / | grep -v "^\."
   echo "=========================="
@@ -527,7 +540,7 @@ function selectTable() {
         select selectCondition in "All" "By Column" "Projection" "Exit"; do
           case $selectCondition in
           "All")
-            echo "All data in $searchTable: " && cat ./"$searchTable" && echo ""
+            echo "===============" && echo "All data in $searchTable: " && echo "===============" && cat ./"$searchTable" && echo "==============="
             break 2
             ;;
           "By Column")
@@ -732,10 +745,11 @@ function dropTable() {
       break
       ;;
     *)
-      if [ -f "./$TBdrop" ]; then
+      if [ -f "./$TBdrop" && -f "./$TBdrop"_metadata ]; then
         read -p "Are you sure you want to permanently drop $TBdrop? [y/n]: " dropFlag
         if [[ "$dropFlag" == "y" ]]; then
           rm "$TBdrop"
+          rm "./$TBdrop"_metadata
           echo "$TBdrop is successfully dropped"
           break
         else
@@ -750,7 +764,7 @@ function dropTable() {
   done
 }
 function tableMenu(){
-  tableMenu="Current DB: $1,\n1)Create table\n2)List tables\n3)Insert into Table\n4)Select From Table\n5)Update Table\n6)Delete From Table\n7)Drop Table\n8)Exit"
+  tableMenu="================\nCurrent DB: $1,\n================\n1)Create table\n2)List tables\n3)Insert into Table\n4)Select From Table\n5)Update Table\n6)Delete From Table\n7)Drop Table\n8)Exit"
   echo -e $tableMenu
 }
 
