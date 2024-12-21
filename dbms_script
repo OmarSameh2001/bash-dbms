@@ -9,21 +9,11 @@ shopt -s extglob
 # Main function
 function main {
   # start menu
-  echo "=========================================="
-  echo "Welcome to ITI DBMS"
-  echo "Working directory: $BaseDir"
-  echo "This directory contains $(ls -d */ | wc -l) databases"
-  echo "=========================================="
-
-  select option1 in "Create database" "List databases" "Connect to database" "Drop database" "Exit"; do
-    if [ $(pwd) != $BaseDir ]; then
-      cd ${BaseDir}
-      echo "returned to base directory: $BaseDir"
-    fi
-    case $option1 in
+  while true; do
+    choice=$(zenity --list --column="Menu" "Create database" "List databases" "Connect to database" "Drop database" "Exit" --title="ITI DBMS" --text="Working directory: $BaseDir")
+    case $choice in
     "Create database")
       createDB
-      dbMenu
       ;;
     "List databases")
       checkDB
@@ -31,7 +21,6 @@ function main {
       if [ $flag -eq 0 ]; then 
         listDB
       fi
-      dbMenu
       ;;
     "Connect to database")
       checkDB
@@ -39,7 +28,6 @@ function main {
       if [ $flag -eq 0 ]; then
         connectDB
       fi
-      dbMenu
       ;;
     "Drop database")
       checkDB
@@ -47,14 +35,12 @@ function main {
       if [ $flag -eq 0 ]; then
         dropDB
       fi
-      dbMenu
       ;;
     "Exit")
       break
       ;;
     *)
-      echo "Invalid option. Please try again."
-      dbMenu
+      break
       ;;
     esac
   done
@@ -100,33 +86,24 @@ function listDB() {
 # connect to database by cd to its directory
 function connectDB() {
   getDB
-  echo "============================================================="
-  echo "Connecting to Database"
-  echo "Please enter the number of the database you want to connect: "
-  echo "============================================================="
-  select option2 in "${databases[@]}" "Exit"; do
-    case $option2 in
-    "Exit")
-      echo "Exiting..."
-      break
-      ;;
-    *)
-      DBConnect=$option2
-      if [[ -d "$DBConnect" ]]; then
-        cd "$DBConnect"
-        accessTables "$DBConnect"
-        # after exit accessTables (disconnect)
-        cd ..
-        echo "Disconnected from DB $DBConnect"
-        break
-      else
-        # $REPLY is the selected number
-        echo "Database with number $REPLY does not exist."
-        echo "Please enter valid number for the database you want: "
-      fi
-      ;;
-    esac
-  done
+  choice=$(zenity --list --column="Database Name" "${databases[@]}" "Exit" --title="ITI DBMS" --text="Please choose the database you want to connect: ")
+  case $choice in
+  "Exit")
+    echo "Exiting..."
+    return
+    ;;
+  *)DBConnect=$choice
+    if [[ -d "$DBConnect" ]]; then
+      cd "$DBConnect"
+      accessTables "$DBConnect"
+      # after exit accessTables (disconnect)
+      cd ..
+      echo "Disconnected from DB $DBConnect"
+    else
+      echo "Database with name $choice does not exist."
+    fi
+    ;;
+  esac
 }
 
 # drop database
@@ -190,40 +167,37 @@ function dbMenu(){
 
 
 function accessTables() {
-  echo "=========================================="
-  echo "Welcome to $1 database in $(pwd)"
-  echo "=========================================="
-  tables=$(ls -p | grep -v / | grep -v "^\.")
+  getTables
   if [[ -n ${tables[@]} ]]; then
-    select option3 in "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit"; do
-    case $option3 in
+    choice=$(zenity --list --column="Menu" "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit" --title="ITI DBMS" --text="Tables list in $1 database:")
+    case $choice in
     "Create table")
       createTable
-      tableMenu $1
+      accessTables $1
       ;;
     "List tables")
       listTables $1
-      tableMenu $1
+      accessTables $1
       ;;
     "Drop Table")
       dropTable
-      tableMenu $1
+      accessTables $1
       ;;
     "Insert into Table")
       insertTable
-      tableMenu $1
+      accessTables $1
       ;;
     "Select From Table")
       selectTable
-      tableMenu $1
+      accessTables $1
       ;;
     "Update Table")
       updateTable
-      tableMenu $1
+      accessTables $1
       ;;
     "Delete From Table")
       deleteFromTable
-      tableMenu $1
+      accessTables $1
       ;;
     "Exit")
       break
@@ -232,23 +206,20 @@ function accessTables() {
       echo "Invalid entry. Please try again."
       ;;
     esac
-  done 
   else
-    echo "To access the full menu please create a table"
-    select option3 in "Create table" "Exit"; do
-    case $option3 in
+    choice=$(zenity --list --column="Menu" "Create table" "Exit" --title="ITI DBMS" --text="No tables found in $1 database:")
+    case $choice in
     "Create table")
       createTable
-      echo $menu
+      accessTables $1
       ;;
     "Exit")
-      break
+      return
       ;;
     *)
       echo "Invalid entry. Please try again."
       ;;
     esac
-  done
   fi
 }
 
@@ -386,7 +357,7 @@ function listTables() {
   echo "=========================="
   read -p "Press enter to continue..." exit
   if [[ -n $exit || $exit == "" ]]; then
-    break
+    return
   fi
 }
 
@@ -398,7 +369,7 @@ function listTables() {
 # 3)get the pk column from metadata.
 
 function insertTable() {
-  tables=$(ls -p | grep -v / | grep -v "^\.")
+  getTables
   echo "Here are the tables in this database: "
   while true
   do
@@ -532,9 +503,8 @@ function insertTable() {
 }
 
 function selectTable() {
-  tables=($(ls -p | grep -v / | grep -v "^\."))
-  echo "Please enter the name or number of the table you want: "
-  select searchTable in "${tables[@]}" "Exit"; do
+  getTables
+  searchTable=$(zenity --list --title "Select a table" --text "Select a table" --column "Tables" "${tables[@]}" "Exit")
     case $searchTable in
     "Exit")
       echo "Exiting..."
@@ -649,12 +619,11 @@ function selectTable() {
       fi
       ;;
     esac
-  done
+  
 }
 
 function updateTable() {
-  # get tables (list all except dir (/) and hidden files (\.))
-  tables=($(ls -p | grep -v / | grep -v "^\."))
+  getTables
   echo "Please enter the name or number of the table you want to update: "
   select updateTable in "${tables[@]}" "Exit"; do
     case $updateTable in
@@ -822,18 +791,17 @@ function updateTable() {
 
 function deleteFromTable() {
   # implement remove logic
-  tables=$(ls -p | grep -v / | grep -v "^\.")
+  getTables
   echo "Here are the tables in this database: "
   echo "================================================================================"
-  tablesArray=($tables)
   PS3="Please select a number from the menu: "
-  select option6 in "${tablesArray[@]}";do #outer select
+  select option6 in "${tables[@]}";do #outer select
     # read -p "Please enter the name of the table you want to Delete From: " choice
     case $REPLY in
       [1-9]*)
         tableName=$option6
         #Validation of outer select
-        if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} )); then
+        if (( $REPLY >= 1 && $REPLY <= ${#tables[@]} )); then
           echo "================================================================================"
           select choice2 in "By id" "By Column" "All" "Exit"; do
             case $choice2 in #second
@@ -980,7 +948,7 @@ function deleteFromTable() {
 
 # drop table
 function dropTable() {
-  tables=$(ls -p | grep -v / | grep -v "^\.")
+  getTables
   select TBdrop in "$tables" "Exit"; do
     case $TBdrop in
     "Exit")
@@ -1009,6 +977,11 @@ function dropTable() {
       ;;
     esac
   done
+}
+
+function getTables() {
+  # get tables (list all except dir (/) and hidden files (\.))
+  tables=($(ls -p | grep -v / | grep -v "^\."))
 }
 function tableMenu(){
   tableMenu="================\nCurrent DB: $1,\n================\n1)Create table\n2)List tables\n3)Insert into Table\n4)Select From Table\n5)Update Table\n6)Delete From Table\n7)Drop Table\n8)Exit"
