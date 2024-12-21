@@ -262,6 +262,9 @@ function createTable() {
       echo "exiting.."
       return
       ;;
+    #Validation for tableName that it always starts with a letter only,
+    #doesn't have any special characters,
+    #Spaces are changed into an underscore.
     +([a-zA-Z])*([a-zA-Z0-9|" "]))
       tableName=${tableName/" "/"_"}
       echo "$tableName is a valid name"
@@ -272,6 +275,7 @@ function createTable() {
       ;;
     esac
   done
+  #check if table already exist or no.
   if [ -e "./$tableName" ]; then
     echo "Table $tableName already exists"
     return
@@ -279,22 +283,26 @@ function createTable() {
     while true
       do
         read -p "Enter the number of columns in the table: " colNum
+        # Validation for number of columns in table can only be numbers and greater than 0.
         if [[ $colNum =~ ^[0-9]+$ && $colNum -gt 0 ]]; then
           break
         else
           echo "Error: Number of columns must be a positive integer"
         fi
       done
+    # Iterate over the number of columns the user entered.
     for ((i=0;i<$colNum;i++))
     do
       line=""
-
+      #If we are at first Column,then here is where the user enters his primary key of table.
       if [[ $i -eq 0 ]]
       then
         while true
         do
-          read -p "Please enter the name of you primary key column " colName
+          read -p "Please enter the name of your primary key column " colName
           case $colName in
+          # Validation for name  of column can start with a letter only,
+          # doesn't have special characters and spaces are changed into an underscore.
           +([a-zA-Z])*([a-zA-Z0-9|" "]))
             colName=${colName/" "/"_"}
             line+=$colName
@@ -309,6 +317,7 @@ function createTable() {
         while true
         do
           read -p "Please enter the primary key column type (int/str): " colType
+          # Here we make sure that user only enters the type of column to be only int or str.
           case $colType in
           "int")
             line+=:$colType
@@ -326,11 +335,12 @@ function createTable() {
         done
         line+=:pk
 
-      else
+      else # For all iterations after PK is inserted.
         while true
           do
-            read -p "Please enter the name of the column: " colName
+            read -p "Please enter the name of column number $((i + 1)) : " colName
             case $colName in
+            #same validation done for PK name.
             +([a-zA-Z])*([a-zA-Z0-9|" "]))
               colName=${colName/" "/"_"}
               line+=$colName
@@ -344,7 +354,8 @@ function createTable() {
 
         while true
           do
-            read -p "Please enter column type (int/str): " colType
+            read -p "Please enter type of column number $((i + 1)) (int/str): " colType
+            #same validation done for pk type.
             case $colType in
             "int")
               line+=:$colType
@@ -362,12 +373,13 @@ function createTable() {
         done
 
       fi
+    # Here we append the data to the tableName metadata. 
     echo $line >> .$tableName"_metadata"
 
     done
 
     
-    # implement (int, str, primary key) in metadata file, and tablename validation
+    # Create the table file.
     touch "$tableName"
     echo "Table $tableName is successfully created"
     echo "==========================================================="
