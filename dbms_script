@@ -410,107 +410,104 @@ function insertTable() {
         tableName=$option7
         if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} ));then
           echo "================================================================================"
-          if [ -f "./$tableName" ];then
-            #get column types and names from metadata.
-            types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
-            names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
-            #to change string to an array. ==> hello my friend --> [hello,my,friend]
-            namesArray=($names)
-            typesArray=($types)
-            echo "Columns in table $tableName :"
-            echo "${namesArray[@]}"
-            echo "================================================================================"
-            #get number of columns from metadata
-            numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
-            newTableLine=""
-            for (( i=0;i<numberOfColumns;i++ ));do #number 2
-              if [[ "${typesArray[$i]}" == "int" ]];then
-                while true;do #number 3
-                  duplicateFlag=false
-                  read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
-                  if [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];then
-                    previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-                    if [[ $i -eq 0 ]];then
-                      for previous in $previousIds;do #number 4
-                        if [[ "$previous" == "$columnInput" ]];then
-                          echo "Error: $columnInput already exists, Please type try another id "
-                          duplicateFlag="true"
-                          break #from number 4
-                        fi
-                      done
-                      if [[ "$duplicateFlag" == "false" ]];then
-                        newTableLine+=$columnInput
-                        break #from number 3
-                        continue # to number 2
+          #get column types and names from metadata.
+          types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+          names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+          #to change string to an array. ==> hello my friend --> [hello,my,friend]
+          namesArray=($names)
+          typesArray=($types)
+          echo "Columns in table $tableName :"
+          echo "${namesArray[@]}"
+          echo "================================================================================"
+          #get number of columns from metadata
+          numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
+          newTableLine=""
+          for (( i=0;i<numberOfColumns;i++ ));do #number 2
+            if [[ "${typesArray[$i]}" == "int" ]];then
+              while true;do #number 3
+                duplicateFlag=false
+                read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
+                if [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];then
+                  previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                  if [[ $i -eq 0 ]];then
+                    for previous in $previousIds;do #number 4
+                      if [[ "$previous" == "$columnInput" ]];then
+                        echo "Error: $columnInput already exists, Please type try another id "
+                        duplicateFlag="true"
+                        break #from number 4
                       fi
-                    else
-                    newTableLine+=":$columnInput"
-                    fi
-                    
-                    if [[ "$duplicateFlag" == "true" ]]
-                    then
-                      continue # to number 2
-                    else
+                    done
+                    if [[ "$duplicateFlag" == "false" ]];then
+                      newTableLine+=$columnInput
                       break #from number 3
-                      continue #to number 2
+                      continue # to number 2
                     fi
-                    
                   else
-                    echo "Error ${namesArray[$i]} should be integer number "
+                  newTableLine+=":$columnInput"
                   fi
-                done
-              #to handle if the column is a string.
-              else
-                while true ;do #number 5
-                  duplicateFlag=false
-                  read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
-                    #change all string primary keys to lowercase before handling duplication
-                    columnInput=$(echo "$columnInput"| awk '{print tolower($0)}')
-                    previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-                    if [[ $i -eq 0 ]];then
-                      for previous in $previousIds
-                      do
-                        if [[ "$previous" == "$columnInput" ]]
-                        then
-                          echo "Error: $columnInput already exists, Please type try another id "
-                          duplicateFlag="true"
-                          break
-                        fi
-                      done
-                      if [[ "$duplicateFlag" == "false" ]]
-                      then
-                        newTableLine+=$columnInput
-                        break
-                        continue
-                      fi
-                    else
-                      newTableLine+=":$columnInput"
-                    fi
                     
-                    if [[ "$duplicateFlag" == "true" ]]
+                  if [[ "$duplicateFlag" == "true" ]]
+                  then
+                    continue # to number 2
+                  else
+                    break #from number 3
+                    continue #to number 2
+                  fi
+                    
+                else
+                  echo "Error ${namesArray[$i]} should be integer number "
+                fi
+              done
+            #to handle if the column is a string.
+            else
+              while true ;do #number 5
+                duplicateFlag=false
+                read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
+                  #change all string primary keys to lowercase before handling duplication
+                  columnInput=$(echo "$columnInput"| awk '{print tolower($0)}')
+                  previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                  if [[ $i -eq 0 ]];then
+                    for previous in $previousIds
+                    do
+                      if [[ "$previous" == "$columnInput" ]]
+                      then
+                        echo "Error: $columnInput already exists, Please type try another id "
+                        duplicateFlag="true"
+                        break
+                      fi
+                    done
+                    if [[ "$duplicateFlag" == "false" ]]
                     then
-                      continue
-                    else
+                      newTableLine+=$columnInput
                       break
-
                       continue
                     fi
-                done
-                
-                continue
+                  else
+                    newTableLine+=":$columnInput"
+                  fi
+                    
+                  if [[ "$duplicateFlag" == "true" ]]
+                  then
+                    continue
+                  else
+                    break
 
-              fi
-            done
-            echo $newTableLine >> ./$tableName
-            echo "Data inserted successfully"
-            echo "================================================================================"
-            read -p "Press enter to continue..." exit
-            if [[ -n $exit || $exit == "" ]]; then
-              break
+                    continue
+                  fi
+              done
+                
+              continue
+
             fi
-          else
-            echo "Error: Table doesn't exist, please try again. "
+          done
+          echo $newTableLine >> ./$tableName
+          echo "Data inserted successfully"
+          echo "================================================================================"
+          read -p "Press enter to continue..." exit
+          if [[ -n $exit || $exit == "" ]]; then
+            break
           fi
+          
           
           echo "exiting.."
           break
@@ -520,7 +517,7 @@ function insertTable() {
         fi
         ;;
       *)
-        echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
+        echo "Error, Please enter a numbers only and try again... "
     esac
   done
   return
