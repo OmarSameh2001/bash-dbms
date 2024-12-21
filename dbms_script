@@ -2,48 +2,55 @@
 
 # variable for base directory and database count
 BaseDir=$(pwd)
-DBCount=
 # for special characters validation
 shopt -s extglob
 
 # Main function
 function main {
-  # start menu
-  while true; do
-    choice=$(zenity --list --column="Menu" "Create database" "List databases" "Connect to database" "Drop database" "Exit" --title="ITI DBMS" --text="Working directory: $BaseDir")
-    case $choice in
-    "Create database")
-      createDB
-      ;;
-    "List databases")
-      checkDB
-      flag=$?
-      if [ $flag -eq 0 ]; then 
+  checkDB
+  flag=$?
+  if [ $flag -eq 0 ]; then
+    # start menu
+    while true; do
+      choice=$(zenity --list --column="Menu" "Create database" "List databases" "Connect to database" "Drop database" "Exit" --title="ITI DBMS" --text="$(ls -d */ | wc -l) databases found.\nWorking directory: $BaseDir")
+      case $choice in
+      "Create database")
+        createDB
+        ;;
+      "List databases")
         listDB
-      fi
-      ;;
-    "Connect to database")
-      checkDB
-      flag=$?
-      if [ $flag -eq 0 ]; then
+        ;;
+      "Connect to database")
         connectDB
-      fi
-      ;;
-    "Drop database")
-      checkDB
-      flag=$?
-      if [ $flag -eq 0 ]; then
+        ;;
+      "Drop database")
         dropDB
-      fi
-      ;;
-    "Exit")
-      break
-      ;;
-    *)
-      break
-      ;;
-    esac
-  done
+        ;;
+      "Exit")
+        break
+        ;;
+      *)
+        break
+        ;;
+      esac
+    done
+  else
+    # start menu
+    while true; do
+      choice=$(zenity --list --column="Menu" "Create database" "Exit" --title="ITI DBMS" --text="0 databases found.\nWorking directory: $BaseDir\nPlease create a database first.")
+      case $choice in
+      "Create database")
+        createDB
+        ;;
+      "Exit")
+        break
+        ;;
+      *)
+        break
+        ;;
+      esac
+    done
+  fi
 }
 
 
@@ -81,6 +88,10 @@ function listDB() {
   # multi line
   ls -d */ | sed 's/[/]/ /g'
   echo "=========================="
+  read -p "Press enter to continue..." exit
+  if [[ -n $exit || $exit == "" ]]; then
+    return
+  fi
 }
 
 # connect to database by cd to its directory
@@ -144,7 +155,6 @@ function dropDB() {
 # Check if any DB exists
 function checkDB() {
   if [ $(ls -d */ 2> /tmp/err | wc -w) -eq 0 ]; then
-    echo "No databases found."
     return 1
   fi
 }
@@ -156,10 +166,10 @@ function getDB() {
 }
 
 # print db menu again
-function dbMenu(){
-  db="==========================\nCurrent Directory: $BaseDir\nThis directory contains $(ls -d */ | wc -l) databases.\n==========================\n1)Create database\n2)List databases\n3)Connect to database\n4)Drop database\n5)Exit"
-  echo -e $db
-}
+# function dbMenu(){
+#   db="==========================\nCurrent Directory: $BaseDir\nThis directory contains $(ls -d */ | wc -l) databases.\n==========================\n1)Create database\n2)List databases\n3)Connect to database\n4)Drop database\n5)Exit"
+#   echo -e $db
+# }
 
 # ===========================
 # Table functions
@@ -169,7 +179,7 @@ function dbMenu(){
 function accessTables() {
   getTables
   if [[ -n ${tables[@]} ]]; then
-    choice=$(zenity --list --column="Menu" "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit" --title="ITI DBMS" --text="Tables list in $1 database:")
+    choice=$(zenity --list --column="Menu" "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit" --title="ITI DBMS" --text="You are connected to $1 database.\nChoose an option:")
     case $choice in
     "Create table")
       createTable
@@ -203,7 +213,7 @@ function accessTables() {
       break
       ;;
     *)
-      echo "Invalid entry. Please try again."
+      return
       ;;
     esac
   else
@@ -217,7 +227,7 @@ function accessTables() {
       return
       ;;
     *)
-      echo "Invalid entry. Please try again."
+      return
       ;;
     esac
   fi
@@ -225,82 +235,51 @@ function accessTables() {
 
 # implement (int, str, primary key) in metadata file, and tablename validation
 function createTable() {
+  tableNameText="Enter the name of the table you want to create:"
   while true
     do
-  read -p "Please enter new table's name or type exit: " tableName
+    tableName=$(zenity --entry --title="Create Table" --text="$tableNameText")
     case $tableName in
-    @([eE][xX][iI][tT]))
-      echo "exiting.."
-      return
-      ;;
     +([a-zA-Z])*([a-zA-Z0-9|" "]))
       tableName=${tableName/" "/"_"}
-      echo "$tableName is a valid name"
-      break
+      if [ -e "./$tableName" ]; then
+        tableNameText="Error Table with name $tableName already exists.\nEnter the name of the table you want to create.\nOr type exit."
+      else
+        break
+      fi
       ;;
     *)
-      echo "Name should start with only letters and can't have any special characters."
+      if [[ $? == 0 ]]; then
+        tableNameText="Error Table name should start with only letters and can't have any special characters.\nEnter the name of the table you want to create:\nor type exit"
+      else
+        return
+      fi
       ;;
     esac
   done
-  if [ -e "./$tableName" ]; then
-    echo "Table $tableName already exists"
-    return
-  else
-    while true
-      do
-        read -p "Enter the number of columns in the table: " colNum
-        if [[ $colNum =~ ^[0-9]+$ && $colNum -gt 0 ]]; then
-          break
-        else
-          echo "Error: Number of columns must be a positive integer"
-        fi
-      done
-    for ((i=0;i<$colNum;i++))
+  colNumText="Enter the number of columns in the table:"
+  while true
+    do
+      colNum=$(zenity --entry --title="Create Table" --text="$colNumText")
+      if [[ $? -eq 1 ]]; then
+        return
+      elif [[ $colNum =~ ^[0-9]+$ && $colNum -gt 0 ]]; then
+        break
+      else
+        colNumText="Error: Enter a number that is greater than 0.\nEnter the number of columns in the table:"
+      fi
+    done
+
+  for ((i=0;i<$colNum;i++))
     do
       line=""
 
-      if [[ $i -eq 0 ]]
+      if [[ $i -eq 0 ]];
       then
-        while true
-        do
-          read -p "Please enter the name of you primary key column " colName
-          case $colName in
-          +([a-zA-Z])*([a-zA-Z0-9|" "]))
-            colName=${colName/" "/"_"}
-            line+=$colName
-            break
-            ;;
-          *)
-            echo "column Name should start with only letters and can't have any special characters."
-            ;;
-          esac
-        done
-
-        while true
-        do
-          read -p "Please enter the primary key column type (int/str): " colType
-          case $colType in
-          "int")
-            line+=:$colType
-            break
-            ;;
-
-          "str")
-            line+=:$colType
-            break
-            ;;
-          *)
-            echo "Invalid entry, please enter (int/str)."
-            ;;
-          esac
-        done
-        line+=:pk
-
-      else
+        colNameText="Enter the name of the first column:"
         while true
           do
-            read -p "Please enter the name of the column: " colName
+            colName=$(zenity --entry --title="Create Table" --text="$colNameText")
             case $colName in
             +([a-zA-Z])*([a-zA-Z0-9|" "]))
               colName=${colName/" "/"_"}
@@ -308,14 +287,19 @@ function createTable() {
               break
               ;;
             *)
-              echo "column Name should start with only letters and can't have any special characters. "
+              if [[ $? == 0 ]]; then
+                colNameText="Error column Name should start with only letters and can't have any special characters.\nEnter the name of the first column:"
+              else
+                return
+              fi
               ;;
             esac
-          done
+          done 
 
+        colTypeText="Enter the type of the first column (int/str):"
         while true
           do
-            read -p "Please enter column type (int/str): " colType
+            colType=$(zenity --entry --title="Create Table" --text="$colTypeText")
             case $colType in
             "int")
               line+=:$colType
@@ -327,26 +311,68 @@ function createTable() {
               break
               ;;
             *)
-              echo "Invalid entry, please enter (int/str). "
+              if [[ $? == 0 ]]; then
+                colTypeText="Invalid entry, please enter (int/str).\nEnter the type of the first column(int/str):"
+              else
+                return
+              fi
+              ;;
+            esac
+          done
+        line+=:pk
+
+      else
+        colNameText="Enter the name of $(($i+1)) column:"
+        while true
+          do
+            colName=$(zenity --entry --title="Create Table" --text="$colNameText")
+            case $colName in
+            +([a-zA-Z])*([a-zA-Z0-9|" "]))
+              colName=${colName/" "/"_"}
+              line+=$colName
+              break
+              ;;
+            *)
+              if [[ $? == 0 ]]; then
+                colNameText="Error column Name should start with only letters and can't have any special characters.\nEnter the name of $(($i+1)) column:"
+              else
+                return
+              fi
+              ;;
+            esac
+          done
+
+        while true
+          do
+            colTypeText="Invalid entry, please enter (int/str). "
+            colType=$(zenity --entry --title="Create Table" --text="$colTypeText")
+            case $colType in
+            "int")
+              line+=:$colType
+              break
+              ;;
+
+            "str")
+              line+=:$colType
+              break
+              ;;
+            *)
+              if [[ $? == 0 ]]; then
+                colTypeText="Invalid entry, please enter (int/str). "
+              else
+                return
+              fi
               ;;
             esac
         done
-
       fi
-    echo $line >> .$tableName"_metadata"
-
+      echo $line >> .$tableName"_metadata"
     done
 
-    
-    # implement (int, str, primary key) in metadata file, and tablename validation
     touch "$tableName"
     echo "Table $tableName is successfully created"
     echo "==========================================================="
-    read -p "Press enter to continue..." exit
-    if [[ -n $exit || $exit == "" ]]; then
-      break
-    fi
-  fi
+    read -p "Press enter to continue..." 
 }
 
 function listTables() {
@@ -355,10 +381,7 @@ function listTables() {
   echo "=========================="
   ls -p | grep -v / | grep -v "^\."
   echo "=========================="
-  read -p "Press enter to continue..." exit
-  if [[ -n $exit || $exit == "" ]]; then
-    return
-  fi
+  read -p "Press enter to continue..."
 }
 
 
@@ -504,119 +527,87 @@ function insertTable() {
 
 function selectTable() {
   getTables
-  searchTable=$(zenity --list --title "Select a table" --text "Select a table" --column "Tables" "${tables[@]}" "Exit")
+  searchTable=$(zenity --list --title "Select from table" --text "Select a table" --column "Tables" "${tables[@]}" "Exit")
     case $searchTable in
     "Exit")
       echo "Exiting..."
       break
       ;;
     *)
-      if [ -f "./$searchTable" ]; then
-        echo "Select condition:"
-        select selectCondition in "All" "By Column" "Projection" "Exit"; do
+        selectCondition=$(zenity --list --title "Select From table" --text "Select a condition" --column "Conditions" "All" "By Column" "Projection" "Exit")
           case $selectCondition in
           "All")
             echo "===============" && echo "All data in $searchTable: " && echo "===============" && cat ./"$searchTable" && echo "==============="
-            read -p "Press enter to continue..." exit
-            if [[ -n $exit || $exit == "" ]]; then
-              break 2
-            fi
-            #break 2
+            read -p "Press enter to continue..."
             ;;
           "By Column")
               columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
-              
-                echo "Please enter the name of the column you want: "
-                select choice in "${columns[@]}" "Exit"; do
-                case $choice in
-                "Exit")
-                  echo "Exiting..."
-                  break 3
-                  ;;
-                *)
-                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
-                  read -p "Please enter the value of $choice: " value
-                  echo "Please enter the comparison operator: "
-                  column="$REPLY"
-                  select comparison in "Exact match" "Regular expression (like %%)" "Exit"; do
-                    case $comparison in
-                    "Exit")
-                      echo "Exiting..."
-                      break 4
-                      ;;
-                    "Exact match")
-                      compare="=="
-                      break
-                      ;;
-                    "Regular expression (like %%)")
-                      compare="~"
-                      break
-                      ;;
-                    *)
-                      echo "Invalid option."
-                      ;;
-                    esac
-                  done
-                  if [[ $compare == "==" ]]; then
-                    found=$(awk -F ":" -v reply="$column" -v value="$value" '$reply == value {print $0}' "./$searchTable")
-                  elif [[ $compare == "~" ]]; then
-                    found=$(awk -F ":" -v reply="$column" -v value="$value" '$reply ~ value {print $0}' "./$searchTable")
-                  fi
-                  if [ -n "$found" ]; then
-                    echo "Here is all records with column $choice = $value in $searchTable"
-                    echo "============="
-                    echo "$found"
-                    echo "============="
-                    read -p "Press enter to continue..." exit
-                    if [[ -n $exit || $exit == "" ]]; then
-                      break 3
-                    fi
-                  else
-                    echo "No records found with column $choice = $value"
-                    echo "Select another column number or $((${#columns[@]} + 1)) to exit"
-                  fi
-                else
-                  echo "Invalid column name."
+              column=$(zenity --list --title "Select From table by column" --text "Select a column" --column "Columns" "${columns[@]}" "Exit")
+              case $column in
+              "Exit")
+                echo "Exiting..."
+                break
+                ;;
+              *)
+                #read -p "Please enter the value of $choice: " value
+                value=$(zenity --entry --title "Select From table by column" --text "Please enter the value of $choice")
+
+                comparison=$(zenity --list --title "Select From table by column" --text "Select a comparison method" --column "Comparisons" "Exact match" "Regular expression (like %%)" "Exit")
+                  case $comparison in
+                  "Exit")
+                    echo "Exiting..."
+                    ;;
+                  "Exact match")
+                    compare="=="
+                    ;;
+                  "Regular expression (like %%)")
+                    compare="~"
+                    ;;
+                  *)
+                    echo "Invalid option."
+                    ;;
+                  esac
+
+                if [[ $compare == "==" ]]; then
+                  found=$(awk -F ":" -v col="$column" -v val="$value" '$col == val {print $0}' "./$searchTable")
+                elif [[ $compare == "~" ]]; then
+                  found=$(awk -F ":" -v col="$column" -v val="$value" '$col ~ val {print $0}' "./$searchTable")
                 fi
-                  ;;
-                esac
-              done
-              break
-            ;;
+
+                if [ -n "$found" ]; then
+                  echo "Here are all records with column $column matching $value in $searchTable:"
+                  echo "============="
+                  echo "$found"
+                  echo "============="
+                  read -p "Press enter to continue..."
+                else
+                  echo "No records found with column $column matching $value."
+                  read -p "Press enter to continue..."
+                fi
+                ;;
+              esac
+          ;;
           "Projection")
             columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
-                echo "Please enter the name of the column you want to project: "
-                select choice in "${columns[@]}" "Exit"; do
+                choice=$(zenity --list --title "Select From table by column" --text "Select a column" --column "Columns" "${columns[@]}" "Exit")
                   case $choice in 
                     "Exit")
                       echo "Exiting..."
-                      break 3
                       ;;
                     *)
-                      if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
-                        projection=$(awk -F ":" -v reply="$REPLY" '{print $reply "\n"}' "./$searchTable")
-                        echo "Projection for column $choice in table $searchTable: "
-                        echo "$projection"
-                        read -p "Press enter to continue..." exit
-                        if [[ -n $exit || $exit == "" ]]; then
-                          break 3
-                        fi
-                      else
-                        echo "wrong column name"
-                      fi
+                      column=$(awk -F ":" -v name="$choice" '$1 == name {print NR}' "./.$searchTable"_metadata)
+                      projection=$(awk -F ":" -v column="$column" '{print $column}' "./$searchTable")
+                      echo "Projection for column $choice in table $searchTable: "
+                      echo "$projection"
+                      read -p "Press enter to continue..."
                       ;;
                 esac
-                done
             ;;
           "Exit")
             echo "Exiting..."
             break
             ;;
           esac
-        done
-      else
-        echo "Table with number $REPLY does not exist."
-      fi
       ;;
     esac
   
@@ -983,9 +974,9 @@ function getTables() {
   # get tables (list all except dir (/) and hidden files (\.))
   tables=($(ls -p | grep -v / | grep -v "^\."))
 }
-function tableMenu(){
-  tableMenu="================\nCurrent DB: $1,\n================\n1)Create table\n2)List tables\n3)Insert into Table\n4)Select From Table\n5)Update Table\n6)Delete From Table\n7)Drop Table\n8)Exit"
-  echo -e $tableMenu
-}
+# function tableMenu(){
+#   tableMenu="================\nCurrent DB: $1,\n================\n1)Create table\n2)List tables\n3)Insert into Table\n4)Select From Table\n5)Update Table\n6)Delete From Table\n7)Drop Table\n8)Exit"
+#   echo -e $tableMenu
+# }
 
 main
