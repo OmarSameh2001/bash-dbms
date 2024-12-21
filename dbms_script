@@ -56,22 +56,22 @@ function main {
 
 # create database
 function createDB() {
+  DBNAmeText="Please enter your DB name: "
   while true
   do
-    read -p "Please enter your DB name: " DBName
-    if [[ 'exit' =~ $DBName ]] ; then
-      echo "Exiting..."
-      break
+    DBName=$(zenity --entry --title="Create Database" --text="$DBNAmeText")
+    if [[ $? -eq 1 ]]; then
+      return
     fi
     # check if name starts with letter and replace spaces with _
     if [[ ${DBName:0:1} =~ [a-zA-Z] ]] && [[ $DBName =~ ^[a-zA-Z0-9[:space:]]*$ ]] ; then
       DBName=${DBName// /_}
     else
-      echo "Name should start with a letter and has no special characters"
+      DBNameText="Error DB name should start with only letters and can't have any special characters.\nPlease enter your DB name: "
       continue
     fi
     if [ -d "./$DBName" ] ; then
-      echo "$DBName already exists"
+      DBNameText="Error DB with name $DBName already exists.\nPlease enter your DB name: "
       continue
     fi
     mkdir "$DBName"
@@ -88,43 +88,33 @@ function listDB() {
   # multi line
   ls -d */ | sed 's/[/]/ /g'
   echo "=========================="
-  read -p "Press enter to continue..." exit
-  if [[ -n $exit || $exit == "" ]]; then
-    return
-  fi
+  read -p "Press enter to continue..."
 }
 
 # connect to database by cd to its directory
 function connectDB() {
   getDB
   choice=$(zenity --list --column="Database Name" "${databases[@]}" "Exit" --title="ITI DBMS" --text="Please choose the database you want to connect: ")
-  case $choice in
-  "Exit")
-    echo "Exiting..."
+  if [[ $? -eq 1 ]]; then
     return
-    ;;
-  *)DBConnect=$choice
-    if [[ -d "$DBConnect" ]]; then
+  fi
+  case $choice in
+    "Exit")
+      return
+      ;;
+    *)DBConnect=$choice
       cd "$DBConnect"
       accessTables "$DBConnect"
       # after exit accessTables (disconnect)
       cd ..
-      echo "Disconnected from DB $DBConnect"
-    else
-      echo "Database with name $choice does not exist."
-    fi
-    ;;
+      ;;
   esac
 }
 
 # drop database
 function dropDB() {
   getDB
-  echo "==========================================================="
-  echo "Dropping Database"
-  echo "Please enter the number of the database you want to drop: "
-  echo "==========================================================="
-  select option2 in "${databases[@]}" "Exit"; do
+  option2=$(zenity --list --column="Database Name" "${databases[@]}" "Exit" --title="Drop database" --text="Please choose the database you want to drop: ")
     case $option2 in
     "Exit")
       echo "Exiting..."
@@ -132,23 +122,18 @@ function dropDB() {
       ;;
     *)
       DBDrop=$option2
-      if [[ -d "$DBDrop" ]]; then
-        read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
-        if [[ "yes" =~ "$dropFlag" ]]; then
-          rm -r "$DBDrop"
-          echo "$DBDrop is successfully dropped"
-          break
-        else
-          echo "Database drop cancelled."
-          break
-        fi
+      dropFlag=$(zenity --list --title "Drop database" --text "Are you sure you want to permanently drop $DBDrop? [y/n]: " --column "Menu" "Yes" "No")
+      if [[ $? -eq 1 ]]; then
+        return
+      elif [[ "$dropFlag" == "Yes" ]]; then
+        rm -r "$DBDrop"
+        echo "$DBDrop is successfully dropped"
+        break
       else
-        echo "Database with number $REPLY does not exist."
-        echo "Please enter valid number for the database you want to drop: "
+        return
       fi
       ;;
     esac
-  done
 }
 
 
@@ -384,145 +369,135 @@ function listTables() {
   read -p "Press enter to continue..."
 }
 
-
-# implement insert logic
-# pseudocode:
-# 1) ask user to enter name of table he want to insert to.
-# 2) perform name validation.
-# 3)get the pk column from metadata.
-
 function insertTable() {
   getTables
-  echo "Here are the tables in this database: "
   while true
   do
-    read -p "Please enter the name of the table you want to insert into or type exit: " choice
+    #read -p "Please enter the name of the table you want to insert into or type exit: " choice
+    choice=$(zenity --list --title="Insert to table" --text="Please choose the table you want to insert into or type exit: " --column="Table Name" "${tables[@]}" "Exit" )
     case $choice in
     #to verify first character to be a letter and to accept letters , numbers and underscore.
+      "Exit")
+        return
+        ;;  
       +([a-zA-Z])*([a-zA-Z0-9|"_"]))
         tableName=$choice
-        if [ -f "./$tableName" ]
-        then
-          types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
-          names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
-          #to change string to an array. ==> hello my friend --> [hello,my,friend]
-          namesArray=($names)
-          typesArray=($types)
-          # echo ${namesArray[@]}
-          # echo ${typesArray[@]}
-          numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
-          echo "We have $numberOfColumns columns in table: $tableName "
-          
-          newTableLine=""
-          for (( i=0;i<numberOfColumns;i++ ))
-          do
-            if [[ "${typesArray[$i]}" == "int" ]]
-            then
-              while true
-              do
-                duplicateFlag=false
-                read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
-                if [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];
+        types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+        names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+        #to change string to an array. ==> hello my friend --> [hello,my,friend]
+        namesArray=($names)
+        typesArray=($types)
+        # echo ${namesArray[@]}
+        # echo ${typesArray[@]}
+        numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
+        #echo "We have $numberOfColumns columns in table: $tableName "
+        
+        newTableLine=""
+        for (( i=0;i<numberOfColumns;i++ ))
+        do
+          if [[ "${typesArray[$i]}" == "int" ]]
+          then
+            columnInputName="Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: "
+            while true
+            do
+              duplicateFlag=false
+              #read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
+              columnInput=$(zenity --entry --title="Insert to table" --text="$columnInputName")
+              if [[ $? -eq 1 ]]; then
+                return
+              elif [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];
+              then
+                previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                if [[ $i -eq 0 ]]
                 then
-                  previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-                  if [[ $i -eq 0 ]]
-                  then
-                    for previous in $previousIds
-                    do
-                      if [[ "$previous" == "$columnInput" ]]
-                      then
-                        echo "Error: $columnInput already exists, Please type try another id "
-                        duplicateFlag="true"
-                        break
-                      fi
-                    done
-                    if [[ "$duplicateFlag" == "false" ]]
+                  for previous in $previousIds
+                  do
+                    if [[ "$previous" == "$columnInput" ]]
                     then
-                      newTableLine+=$columnInput
+                      columnInputName="Erorr duplicate id, Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: "
+                      #echo "Error: $columnInput already exists, Please type try another id "
+                      duplicateFlag="true"
                       break
-                      continue
                     fi
-                  else
-                  newTableLine+=":$columnInput"
-                  fi
-                  
-                  if [[ "$duplicateFlag" == "true" ]]
+                  done
+                  if [[ "$duplicateFlag" == "false" ]]
                   then
-                    continue
-                  else
+                    newTableLine+=$columnInput
                     break
-
                     continue
                   fi
-                  
                 else
-                  echo "Error ${namesArray[$i]} should be integer number "
+                newTableLine+=":$columnInput"
                 fi
-              done
-            #to handle if the column is a string.
-            else
-              while true
-              do
-                duplicateFlag=false
-                read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
-                  #change all string primary keys to lowercase before handling duplication
-                  columnInput=$(echo "$columnInput"| awk '{print tolower($0)}')
-                  previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-                  if [[ $i -eq 0 ]]
+                
+                if [[ "$duplicateFlag" == "true" ]]
+                then
+                  continue
+                else
+                  break
+
+                  continue
+                fi
+                
+              else
+                columnInputName="Erorr ${namesArray[$i]} should be integer, Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: "
+              fi
+            done
+          #to handle if the column is a string.
+          else
+            columnInputName="Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: "
+            while true
+            do
+              duplicateFlag=false
+              #change all string primary keys to lowercase before handling duplication
+              columnInput=$(echo "$columnInput"| awk '{print tolower($0)}')
+              previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+              #read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
+              columnInput=$(zenity --entry --title="Insert to table" --text="$columnInputName")
+              if [[ $? -eq 1 ]]; then
+                return
+              elif [[ $i -eq 0 ]]
+              then
+                for previous in $previousIds
+                do
+                  if [[ "$previous" == "$columnInput" ]]
                   then
-                    for previous in $previousIds
-                    do
-                      if [[ "$previous" == "$columnInput" ]]
-                      then
-                        echo "Error: $columnInput already exists, Please type try another id "
-                        duplicateFlag="true"
-                        break
-                      fi
-                    done
-                    if [[ "$duplicateFlag" == "false" ]]
-                    then
-                      newTableLine+=$columnInput
-                      break
-                      continue
-                    fi
-                  else
-                    newTableLine+=":$columnInput"
-                  fi
-                  
-                  if [[ "$duplicateFlag" == "true" ]]
-                  then
-                    continue
-                  else
+                    columnInputName="Erorr duplicate value, Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: "
+                    duplicateFlag="true"
                     break
-
-                    continue
                   fi
-              done
+                done
+                if [[ "$duplicateFlag" == "false" ]]
+                then
+                  newTableLine+=$columnInput
+                  break
+                  continue
+                fi
+              else
+                newTableLine+=":$columnInput"
+              fi
               
-              continue
+              if [[ "$duplicateFlag" == "true" ]]
+              then
+                continue
+              else
+                break
+                continue
+              fi
+            done
+            
+            continue
 
-            fi
-          done
-          echo $newTableLine >> ./$tableName
-          echo "Data inserted successfully"
-          echo "================================================================================"
-          read -p "Press enter to continue..." exit
-          if [[ -n $exit || $exit == "" ]]; then
-            break
           fi
-        else
-          echo "Error: Table doesn't exist, please try again. "
-        fi
-        ;;
-      [eE][xX][iI][tT])
-        echo "exiting.."
-        break
+        done
+        echo $newTableLine >> ./$tableName
+        echo "Data inserted successfully"
+        read -p "Press enter to continue..."
         ;;
       *)
-        echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
+        return
     esac
   done
-  return
 }
 
 function selectTable() {
@@ -783,27 +758,33 @@ function updateTable() {
 function deleteFromTable() {
   # implement remove logic
   getTables
-  echo "Here are the tables in this database: "
-  echo "================================================================================"
   PS3="Please select a number from the menu: "
-  select option6 in "${tables[@]}";do #outer select
-    # read -p "Please enter the name of the table you want to Delete From: " choice
-    case $REPLY in
-      [1-9]*)
-        tableName=$option6
-        #Validation of outer select
-        if (( $REPLY >= 1 && $REPLY <= ${#tables[@]} )); then
-          echo "================================================================================"
-          select choice2 in "By id" "By Column" "All" "Exit"; do
-            case $choice2 in #second
-              "By id")
-                pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
-                pkName=$(awk -F : ' {if(NR==1){print $1}} ' ./"."$tableName"_metadata" )
-                #Incase we have int primary key
-                if [[ "$pktype" == "int"  ]];then
-                  while true ;do #third
+  option6=$(zenity --list --column="Menu" "${tables[@]}" "Exit" --title="Delete From table" --text="Please choose the table you want to Delete From: ")
+  if [[ $? -eq 1 ]]; then
+    return
+  fi
+  case $option6 in
+    "Exit")
+      return
+      ;;
+    *)
+      tableName=$option6
+        choice2=$(zenity --list --column="Delete options" "By id" "By Column" "All" "Exit" --title="Delete From table" --text="Please choose the way you want to Delete From: ")
+          case $choice2 in #second
+            "By id")
+              pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
+              pkName=$(awk -F : ' {if(NR==1){print $1}} ' ./"."$tableName"_metadata" )
+              #Incase we have int primary key
+              if [[ "$pktype" == "int"  ]];then
+                pkInputName="Enter the $pkName of the row you want to delete (Only Numbers are accepted): "
+                while true;
+                  do #third
                     idExistFlag=false
-                    read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
+                    # read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
+                    pkInput=$(zenity --entry --title="Delete From table" --text="$pkInputName")
+                    if [[ $? -eq 1 ]]; then
+                      return
+                    fi
                     if [[ $pkInput =~ ^[0-9]+$ && $pkInput -ge 0 ]]; then
                       #store all previous Ids in a variable
                       previousIds=$(awk -F : ' {print $1} ' ./$tableName )
@@ -823,151 +804,122 @@ function deleteFromTable() {
                       if [[ "$idExistFlag" == "true" ]];then
                         sed -i "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
                         echo "Row is deleted successfully"
-                        echo "================================================================================"
+                        echo "==============================="
                         break #from third
                       else
-                        echo "this $pkName is not found please try again."
+                        pkInputName="Error: $pkInput is not found.\nPlease Enter $pkName of the row you want to delete (Only Numbers are accepted): "
                       fi
-                      
-                      
-                    else
-                      echo "Error: Number must be a positive integer"
                     fi
                   done
-                fi
-                break #from second
-                ;;
-              "By Column")
-                types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
-                names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
-                values=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
-                namesArray=($names)
-                typesArray=($types)
-                select option5 in "${namesArray[@]}";do #five
-                  case $REPLY in
-                    [1-9]*)
-                      #validation of the select five.
-                      if (( $REPLY >= 1 && $REPLY <= ${#namesArray[@]} )); then # #is used to get the length of the array
-                        #get the fieldNumber of the column the user wants to delete
-                        FieldNumber=$(awk -F : -v option="$option5" ' {if($1==option){print NR}} ' ./"."$tableName"_metadata" )
-                        #store all the values of the selected column.
-                        columnValues=$(awk -F : -v fieldNumber="$FieldNumber" ' {print $fieldNumber} ' ./$tableName )
-                        #change from string to array.
-                        columnValuesArray=($columnValues)
-                        #ask the user to enter the column value of the row he wants to delete.
-                        while true ;do #six
-                          columnExistflag=false
-                          read -p "Please Enter $option5 of the row you want to delete : " colValueInput
-                          colInputIndexes=()
-                          #loop over all the column values to check if the entered column exist or no,
-                          #and store all columns index that match the user input in an array.
-                          for (( i=0;i<${#columnValuesArray[@]};i++ ));do #seven
-                            if [[ "${columnValuesArray[$i]}" == "$colValueInput" ]];then
-                              columnExistflag=true
-                              colInputIndexes+=($((i + 1))) #array.
-                            fi
-                          done
-                          echo "the colInputIndex to be delted are ${colInputIndexes[@]}"
-                          if [[ "$columnExistflag" == "true" ]];then
-                            #loop over all the array of indexes starting from end
-                            # to prevent the rows from shifting upward when deleting using sed command
-                            # to delete all rows with index stored in the array.
-                            for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
-                              sed -i "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
-                              echo "Row is deleted successfully"
-                            done
-                            echo "================================================================================"
-                            break #from six
-                          else
-                            echo "this $colValueInput is not found please try again."
+              else
+                echo "no id for this table"
+                return
+              fi
+              ;;
+            "By Column")
+              types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+              names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+              values=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+              namesArray=($names)
+              typesArray=($types)
+              #select option5 in "${namesArray[@]}";do #five
+              option5=$(zenity --list --column="Columns" "${namesArray[@]}" "Exit" --title="Delete From table" --text="Please choose the column you want to Delete From: ")
+              if [[ $? -eq 1 ]]; then
+                return
+              fi
+                case $option5 in
+                  "Exit")
+                    return
+                    ;;
+                  *)
+                      #get the fieldNumber of the column the user wants to delete
+                      FieldNumber=$(awk -F : -v option="$option5" ' {if($1==option){print NR}} ' ./"."$tableName"_metadata" )
+                      #store all the values of the selected column.
+                      columnValues=$(awk -F : -v fieldNumber="$FieldNumber" ' {print $fieldNumber} ' ./$tableName )
+                      #change from string to array.
+                      columnValuesArray=($columnValues)
+                      #ask the user to enter the column value of the row he wants to delete.
+                      while true ;do #six
+                        columnExistflag=false
+                        #read -p "Please Enter $option5 of the row you want to delete : " colValueInput
+                        colValueInput=$(zenity --entry --title="Delete From table" --text="Please Enter $option5 of the row you want to delete : ")
+                        colInputIndexes=()
+                        #loop over all the column values to check if the entered column exist or no,
+                        #and store all columns index that match the user input in an array.
+                        for (( i=0;i<${#columnValuesArray[@]};i++ ));do #seven
+                          if [[ "${columnValuesArray[$i]}" == "$colValueInput" ]];then
+                            columnExistflag=true
+                            colInputIndexes+=($((i + 1))) #array.
                           fi
                         done
-                        
-                
-                        break #from five
-                      else
-                        echo "Invalid selection. Please try again"
-                      fi
-
-                      ;;
-                    *)
-                      echo "please enter a valid number"
-                  
-                  esac
-                done
-                break #from second
-                ;;
-              "All")
-                while true ; do #seven
-                  read -p "Are you sure that you want to delete the entire content of table $tableName? (y/n) " verification
-                  case $verification in
-                    [yY])
-                      sed -i "d" ./$tableName #to delete the entire content of the file
-                      echo "Deleted the entire content of $tableName. "
-                      echo "================================================================================"
-                      break #from seven
-                      ;;
-                    [nN])
-                      echo "Exiting..."
-                      break #from seven
-                      ;;
-                    *)
-                      echo "Error: Invalid input, please try again... "
-                  esac
-                done
-                break #from second case
-                ;;  
-              "Exit")
-                echo "Exiting..."
-                break #from second case
-                ;;
-              *)
-                echo "Please enter a valid number from the menu"
-            esac
-          done
-          break #for the outer select true
-        else
-          echo "Error: Please enter a valid number from the menu and try again... "
-        fi
-        ;;
-      *)
-        echo "Error, Please enter a numbers only and try again... "
-    esac
-  done
+                        if [[ "$columnExistflag" == "true" ]];then
+                          #loop over all the array of indexes starting from end
+                          # to prevent the rows from shifting upward when deleting using sed command
+                          # to delete all rows with index stored in the array.
+                          for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
+                            sed -i "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                            echo "Row is deleted successfully"
+                          done
+                          echo "=============================="
+                          break #from six
+                        else
+                          echo "this $colValueInput is not found please try again."
+                        fi
+                      done
+                    ;;
+                esac
+              ;;
+            "All")
+              verification=$(zenity --list --column="Menu" "Yes" "No" --title="Delete From table" --text="Are you sure that you want to delete the entire content of table $tableName?")
+              if [[ $? -eq 1 ]]; then
+                return
+              fi
+              case $verification in
+                "Yes")
+                  sed -i "d" ./$tableName #to delete the entire content of the file
+                  echo "Deleted the entire content of $tableName. "
+                  echo "============================================="
+                  return
+                  ;;
+                "No")
+                  return
+                  ;;
+              esac
+              ;;  
+            "Exit")
+              return
+              ;;
+          esac
+      ;;
+  esac
 }
 
 
 # drop table
 function dropTable() {
   getTables
-  select TBdrop in "$tables" "Exit"; do
+  TBdrop=$(zenity --list --title "Drop Table" --text "Select a table" --column "Tables" "${tables[@]}" "Exit")
     case $TBdrop in
     "Exit")
       echo "Exiting..."
       break
       ;;
     *)
-      if [ -f "./$TBdrop" && -f "./$TBdrop"_metadata ]; then
-        read -p "Are you sure you want to permanently drop $TBdrop? [y/n]: " dropFlag
-        if [[ "$dropFlag" == "y" ]]; then
+        # read -p "Are you sure you want to permanently drop $TBdrop? [y/n]: " dropFlag
+        dropFlag=$(zenity --list --title "Drop Table" --text "Are you sure you want to permanently drop $TBdrop? [y/n]: " --column "Menu" "Yes" "No")
+        if [[ $? -eq 1 ]]; then
+          return
+        elif [[ "$dropFlag" == "Yes" ]]; then
           rm "$TBdrop"
-          rm "./$TBdrop"_metadata
+          rm "./.$TBdrop"_metadata
           echo "$TBdrop is successfully dropped"
-          
-          read -p "Press enter to continue..." exit
-          if [[ -n $exit || $exit == "" ]]; then
-            break
-          fi
+          echo "============================================="
+          read -p "Press enter to continue..."
         else
-          echo "Table drop operation cancelled."
-          break
+          return
         fi
-      else
-        echo "Table $TBdrop does not exist."
-      fi
       ;;
     esac
-  done
 }
 
 function getTables() {
