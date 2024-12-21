@@ -400,82 +400,73 @@ function listTables() {
 function insertTable() {
   tables=$(ls -p | grep -v / | grep -v "^\.")
   echo "Here are the tables in this database: "
-  while true
-  do
-    read -p "Please enter the name of the table you want to insert into or type exit: " choice
-    case $choice in
-    #to verify first character to be a letter and to accept letters , numbers and underscore.
-      +([a-zA-Z])*([a-zA-Z0-9|"_"]))
-        tableName=$choice
-        if [ -f "./$tableName" ]
-        then
+  echo "================================================================================"
+  tablesArray=($tables)
+  PS3="Please select a number from the menu: "
+  select option7 in "${tablesArray[@]}";do # number 1
+    case $REPLY in
+      #to verify that user enters correct number from the menu.
+      [1-9]*)
+        tableName=$option7
+        if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} ));then
+          echo "================================================================================"
+          #get column types and names from metadata.
           types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
           names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
           #to change string to an array. ==> hello my friend --> [hello,my,friend]
           namesArray=($names)
           typesArray=($types)
-          # echo ${namesArray[@]}
-          # echo ${typesArray[@]}
+          echo "Columns in table $tableName :"
+          echo "${namesArray[@]}"
+          echo "================================================================================"
+          #get number of columns from metadata
           numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
-          echo "We have $numberOfColumns columns in table: $tableName "
-          
           newTableLine=""
-          for (( i=0;i<numberOfColumns;i++ ))
-          do
-            if [[ "${typesArray[$i]}" == "int" ]]
-            then
-              while true
-              do
+          for (( i=0;i<numberOfColumns;i++ ));do #number 2
+            if [[ "${typesArray[$i]}" == "int" ]];then
+              while true;do #number 3
                 duplicateFlag=false
                 read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
-                if [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];
-                then
+                if [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];then
                   previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-                  if [[ $i -eq 0 ]]
-                  then
-                    for previous in $previousIds
-                    do
-                      if [[ "$previous" == "$columnInput" ]]
-                      then
+                  if [[ $i -eq 0 ]];then
+                    for previous in $previousIds;do #number 4
+                      if [[ "$previous" == "$columnInput" ]];then
                         echo "Error: $columnInput already exists, Please type try another id "
                         duplicateFlag="true"
-                        break
+                        break #from number 4
                       fi
                     done
-                    if [[ "$duplicateFlag" == "false" ]]
-                    then
+                    if [[ "$duplicateFlag" == "false" ]];then
                       newTableLine+=$columnInput
-                      break
-                      continue
+                      break #from number 3
+                      continue # to number 2
                     fi
                   else
                   newTableLine+=":$columnInput"
                   fi
-                  
+                    
                   if [[ "$duplicateFlag" == "true" ]]
                   then
-                    continue
+                    continue # to number 2
                   else
-                    break
-
-                    continue
+                    break #from number 3
+                    continue #to number 2
                   fi
-                  
+                    
                 else
                   echo "Error ${namesArray[$i]} should be integer number "
                 fi
               done
             #to handle if the column is a string.
             else
-              while true
-              do
+              while true ;do #number 5
                 duplicateFlag=false
                 read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
                   #change all string primary keys to lowercase before handling duplication
                   columnInput=$(echo "$columnInput"| awk '{print tolower($0)}')
                   previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-                  if [[ $i -eq 0 ]]
-                  then
+                  if [[ $i -eq 0 ]];then
                     for previous in $previousIds
                     do
                       if [[ "$previous" == "$columnInput" ]]
@@ -494,7 +485,7 @@ function insertTable() {
                   else
                     newTableLine+=":$columnInput"
                   fi
-                  
+                    
                   if [[ "$duplicateFlag" == "true" ]]
                   then
                     continue
@@ -504,7 +495,7 @@ function insertTable() {
                     continue
                   fi
               done
-              
+                
               continue
 
             fi
@@ -516,16 +507,17 @@ function insertTable() {
           if [[ -n $exit || $exit == "" ]]; then
             break
           fi
+          
+          
+          echo "exiting.."
+          break
+        
         else
-          echo "Error: Table doesn't exist, please try again. "
+        echo "Error: Please enter a valid number from the menu and try again... "
         fi
         ;;
-      [eE][xX][iI][tT])
-        echo "exiting.."
-        break
-        ;;
       *)
-        echo "Error, table name must start with a letter and doesn't have any special characters, Please try again "
+        echo "Error, Please enter a numbers only and try again... "
     esac
   done
   return
