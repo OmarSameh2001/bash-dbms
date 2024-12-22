@@ -13,6 +13,9 @@ function main {
     # start menu
     while true; do
       choice=$(zenity --list --column="Menu" "Create database" "List databases" "Connect to database" "Drop database" "Exit" --title="ITI DBMS" --text="$(ls -d */ | wc -l) databases found.\nWorking directory: $BaseDir")
+      if [[ $? -eq 1 ]]; then
+        exit 0
+     fi  
       case $choice in
       "Create database")
         createDB
@@ -38,6 +41,9 @@ function main {
     # start menu
     while true; do
       choice=$(zenity --list --column="Menu" "Create database" "Exit" --title="ITI DBMS" --text="0 databases found.\nWorking directory: $BaseDir\nPlease create a database first.")
+      if [[ $? -eq 1 ]]; then
+        return
+      fi
       case $choice in
       "Create database")
         createDB
@@ -75,8 +81,12 @@ function createDB() {
       continue
     fi
     mkdir "$DBName"
-    echo "Successfully created $DBName"
-    break
+    exit=$(zenity --question --title "Drop database" --text "Database $DBName is successfully Created.\nDo you want to do another operation?: " --width 200 --height 200)
+    if [[ $? -eq 0 ]]; then
+      return
+    else
+      exit 0
+    fi
   done
 }
 
@@ -94,7 +104,7 @@ function listDB() {
 # connect to database by cd to its directory
 function connectDB() {
   getDB
-  choice=$(zenity --list --column="Database Name" "${databases[@]}" "Exit" --title="ITI DBMS" --text="Please choose the database you want to connect: ")
+  choice=$(zenity --list --column="Database Name" "${databases[@]}" "Exit" --title="Connect to Database" --text="Please choose the database you want to connect: ")
   if [[ $? -eq 1 ]]; then
     return
   fi
@@ -115,10 +125,12 @@ function connectDB() {
 function dropDB() {
   getDB
   option2=$(zenity --list --column="Database Name" "${databases[@]}" "Exit" --title="Drop database" --text="Please choose the database you want to drop: ")
+    if [[ $? -eq 1 ]]; then
+      return
+    fi
     case $option2 in
     "Exit")
-      echo "Exiting..."
-      break
+      return
       ;;
     *)
       DBDrop=$option2
@@ -127,8 +139,13 @@ function dropDB() {
         return
       elif [[ "$dropFlag" == "Yes" ]]; then
         rm -r "$DBDrop"
-        echo "$DBDrop is successfully dropped"
-        break
+        exit=$(zenity --question --title "Drop database" --text "$DBDrop is successfully dropped.\nDo you want to do another operation?: " --width 200 --height 200)
+        if [[ $? -eq 0 ]]; then
+          return
+        else
+          exit 0
+        fi
+        return
       else
         return
       fi
@@ -150,12 +167,6 @@ function getDB() {
   return
 }
 
-# print db menu again
-# function dbMenu(){
-#   db="==========================\nCurrent Directory: $BaseDir\nThis directory contains $(ls -d */ | wc -l) databases.\n==========================\n1)Create database\n2)List databases\n3)Connect to database\n4)Drop database\n5)Exit"
-#   echo -e $db
-# }
-
 # ===========================
 # Table functions
 # ===========================
@@ -164,7 +175,10 @@ function getDB() {
 function accessTables() {
   getTables
   if [[ -n ${tables[@]} ]]; then
-    choice=$(zenity --list --column="Menu" "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit" --title="ITI DBMS" --text="You are connected to $1 database.\nChoose an option:")
+    choice=$(zenity --list --column="Menu" "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit" --title="Tables Menu" --text="You are connected to $1 database.\nChoose an option:")
+    if [[ $? -eq 1 ]]; then
+      return
+    fi
     case $choice in
     "Create table")
       createTable
@@ -202,7 +216,10 @@ function accessTables() {
       ;;
     esac
   else
-    choice=$(zenity --list --column="Menu" "Create table" "Exit" --title="ITI DBMS" --text="No tables found in $1 database:")
+    choice=$(zenity --list --column="Menu" "Create table" "Exit" --title="Tables Menu" --text="No tables found in $1 database:")
+    if [[ $? -eq 1 ]]; then
+      return
+    fi
     case $choice in
     "Create table")
       createTable
@@ -220,10 +237,16 @@ function accessTables() {
 
 # implement (int, str, primary key) in metadata file, and tablename validation
 function createTable() {
+  if [[ -f "./.tmp_metadata" ]]; then
+    rm .tmp_metadata
+  fi
   tableNameText="Enter the name of the table you want to create:"
   while true
     do
     tableName=$(zenity --entry --title="Create Table" --text="$tableNameText")
+    if [[ $? -eq 1 ]]; then
+      return
+    fi
     case $tableName in
     +([a-zA-Z])*([a-zA-Z0-9|" "]))
       tableName=${tableName/" "/"_"}
@@ -265,6 +288,9 @@ function createTable() {
         while true
           do
             colName=$(zenity --entry --title="Create Table" --text="$colNameText")
+            if [[ $? -eq 1 ]]; then
+              return
+            fi
             case $colName in
             +([a-zA-Z])*([a-zA-Z0-9|" "]))
               colName=${colName/" "/"_"}
@@ -285,6 +311,9 @@ function createTable() {
         while true
           do
             colType=$(zenity --entry --title="Create Table" --text="$colTypeText")
+            if [[ $? -eq 1 ]]; then
+              return
+            fi
             case $colType in
             "int")
               line+=:$colType
@@ -311,6 +340,9 @@ function createTable() {
         while true
           do
             colName=$(zenity --entry --title="Create Table" --text="$colNameText")
+            if [[ $? -eq 1 ]]; then
+              return
+            fi
             case $colName in
             +([a-zA-Z])*([a-zA-Z0-9|" "]))
               colName=${colName/" "/"_"}
@@ -331,6 +363,9 @@ function createTable() {
           do
             colTypeText="Invalid entry, please enter (int/str). "
             colType=$(zenity --entry --title="Create Table" --text="$colTypeText")
+            if [[ $? -eq 1 ]]; then
+              return
+            fi
             case $colType in
             "int")
               line+=:$colType
@@ -351,13 +386,17 @@ function createTable() {
             esac
         done
       fi
-      echo $line >> .$tableName"_metadata"
+      echo $line >> .tmp_metadata
     done
-
+    cat .tmp_metadata >> "./.$tableName"_metadata""
+    rm .tmp_metadata
     touch "$tableName"
-    echo "Table $tableName is successfully created"
-    echo "==========================================================="
-    read -p "Press enter to continue..." 
+    exit=$(zenity --question --title "Drop database" --text "Table $tableName is successfully created.\nDo you want to do another operation?: " --width 200 --height 200)
+    if [[ $? -eq 0 ]]; then
+      return
+    else
+      exit 0
+    fi
 }
 
 function listTables() {
@@ -373,8 +412,10 @@ function insertTable() {
   getTables
   while true
   do
-    #read -p "Please enter the name of the table you want to insert into or type exit: " choice
     choice=$(zenity --list --title="Insert to table" --text="Please choose the table you want to insert into or type exit: " --column="Table Name" "${tables[@]}" "Exit" )
+    if [[ $? -eq 1 ]]; then
+      return
+    fi
     case $choice in
     #to verify first character to be a letter and to accept letters , numbers and underscore.
       "Exit")
@@ -387,10 +428,7 @@ function insertTable() {
         #to change string to an array. ==> hello my friend --> [hello,my,friend]
         namesArray=($names)
         typesArray=($types)
-        # echo ${namesArray[@]}
-        # echo ${typesArray[@]}
         numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
-        #echo "We have $numberOfColumns columns in table: $tableName "
         
         newTableLine=""
         for (( i=0;i<numberOfColumns;i++ ))
@@ -401,7 +439,6 @@ function insertTable() {
             while true
             do
               duplicateFlag=false
-              #read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
               columnInput=$(zenity --entry --title="Insert to table" --text="$columnInputName")
               if [[ $? -eq 1 ]]; then
                 return
@@ -415,7 +452,6 @@ function insertTable() {
                     if [[ "$previous" == "$columnInput" ]]
                     then
                       columnInputName="Erorr duplicate id, Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: "
-                      #echo "Error: $columnInput already exists, Please type try another id "
                       duplicateFlag="true"
                       break
                     fi
@@ -452,7 +488,6 @@ function insertTable() {
               #change all string primary keys to lowercase before handling duplication
               columnInput=$(echo "$columnInput"| awk '{print tolower($0)}')
               previousIds=$(awk -F : ' {print $1} ' ./$tableName )
-              #read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
               columnInput=$(zenity --entry --title="Insert to table" --text="$columnInputName")
               if [[ $? -eq 1 ]]; then
                 return
@@ -491,8 +526,12 @@ function insertTable() {
           fi
         done
         echo $newTableLine >> ./$tableName
-        echo "Data inserted successfully"
-        read -p "Press enter to continue..."
+        exit=$(zenity --question --title "Drop database" --text "Data inserted successfully in $tableName.\nDo you want to do another operation?: " --width 200 --height 200)
+        if [[ $? -eq 0 ]]; then
+          return
+        else
+          exit 0
+        fi
         ;;
       *)
         return
@@ -503,13 +542,18 @@ function insertTable() {
 function selectTable() {
   getTables
   searchTable=$(zenity --list --title "Select from table" --text "Select a table" --column "Tables" "${tables[@]}" "Exit")
+    if [[ $? -eq 1 ]]; then
+      return
+    fi
     case $searchTable in
     "Exit")
-      echo "Exiting..."
-      break
+      return
       ;;
     *)
         selectCondition=$(zenity --list --title "Select From table" --text "Select a condition" --column "Conditions" "All" "By Column" "Projection" "Exit")
+          if [[ $? -eq 1 ]]; then
+            return
+          fi
           case $selectCondition in
           "All")
             echo "===============" && echo "All data in $searchTable: " && echo "===============" && cat ./"$searchTable" && echo "==============="
@@ -518,19 +562,25 @@ function selectTable() {
           "By Column")
               columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
               column=$(zenity --list --title "Select From table by column" --text "Select a column" --column "Columns" "${columns[@]}" "Exit")
+              if [[ $? -eq 1 ]]; then
+                return
+              fi
               case $column in
               "Exit")
-                echo "Exiting..."
-                break
+                return
                 ;;
               *)
-                #read -p "Please enter the value of $choice: " value
                 value=$(zenity --entry --title "Select From table by column" --text "Please enter the value of $choice")
-
+                if [[ $? -eq 1 ]]; then
+                  return
+                fi
                 comparison=$(zenity --list --title "Select From table by column" --text "Select a comparison method" --column "Comparisons" "Exact match" "Regular expression (like %%)" "Exit")
+                  if [[ $? -eq 1 ]]; then
+                    return
+                  fi
                   case $comparison in
                   "Exit")
-                    echo "Exiting..."
+                    return
                     ;;
                   "Exact match")
                     compare="=="
@@ -539,7 +589,7 @@ function selectTable() {
                     compare="~"
                     ;;
                   *)
-                    echo "Invalid option."
+                    return
                     ;;
                   esac
 
@@ -564,10 +614,13 @@ function selectTable() {
           ;;
           "Projection")
             columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
-                choice=$(zenity --list --title "Select From table by column" --text "Select a column" --column "Columns" "${columns[@]}" "Exit")
+                choice=$(zenity --list --title "Select From table by column projection" --text "Select a column" --column "Columns" "${columns[@]}" "Exit")
+                  if [[ $? -eq 1 ]]; then
+                    return
+                  fi
                   case $choice in 
                     "Exit")
-                      echo "Exiting..."
+                      return
                       ;;
                     *)
                       column=$(awk -F ":" -v name="$choice" '$1 == name {print NR}' "./.$searchTable"_metadata)
@@ -579,8 +632,7 @@ function selectTable() {
                 esac
             ;;
           "Exit")
-            echo "Exiting..."
-            break
+            return
             ;;
           esac
       ;;
@@ -590,175 +642,205 @@ function selectTable() {
 
 function updateTable() {
   getTables
-  echo "Please enter the name or number of the table you want to update: "
-  select updateTable in "${tables[@]}" "Exit"; do
+  updateTable=$(zenity --list --title "Update Table" --text "Select a table to update:" --column "Tables" "${tables[@]}" "Exit")
+    if [[ $? -eq 1 ]]; then
+      return
+    fi
     case $updateTable in
     "Exit")
-      echo "Exiting..."
-      break
+      return
       ;;
     *)
-      if [ -f "./$updateTable" ]; then
-        columns=($(awk -F ":" '{print $1}' "./.$updateTable"_metadata))
-
-        echo "Please enter update option you want: "
-        select columnChoice in "Specific Column" "Whole Row" "Exit"; do
+        columns=($(awk -F ":" '{print $1}' "./.$updateTable"_metadata))  
+        columnChoice=$(zenity --list --title "Update Table" --text "Select a type of update:" --column "Columns" "Whole Column" "Whole Row" "Exit")
+        if [[ $? -eq 1 ]]; then
+          return
+        fi
           case $columnChoice in
           "Exit")
-            echo "Exiting..."
-            break 2
+            return
             ;;
           "Whole Row")
-            echo "Please enter the name of the column you want to search: "
-            select choice in "${columns[@]}" "Exit"; do
+            choice=$(zenity --list --title "Update Table" --text "Select a column to update its row:" --column "Columns" "${columns[@]}" "Exit")
+              if [[ $? -eq 1 ]]; then
+                return
+              fi
               case $choice in
               "Exit")
-                echo "Exiting..."
-                break 3
+                return
                 ;;
               *)
-                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
-                  read -p "Please enter the value of $columnChoice to search: " searchValue
                   # check if the value is in the table (regex for easier matching)
+                  searchValueText="Please enter the value of $choice to search"
+                  while true; 
+                  do
+                  searchValue=$(zenity --entry --title "Update Table" --text "$searchValueText")
+                  if [[ $? -eq 1 ]]; then
+                    return
+                  fi
                   found=$(awk -F ":" -v reply="$REPLY" -v value="$searchValue" '$reply ~ value {print $0}' "./$updateTable")
 
                   if [ -n "$found" ]; then
-                    echo "Here are all records with column $columnChoice = $searchValue in $updateTable"
-                    echo "Choose the row you want to update:"
-                    echo "============="
+                    
                     # convert to array to use select
                     foundArray=($found)
-                    select rowToUpdate in "${foundArray[@]}" "Exit"; do
+                    rowToUpdate=$(zenity --list --title "Update Table" --text "Here are all records with column $columnChoice = $searchValue in $updateTable.\nSelect a row to update:" --column "Rows" "${foundArray[@]}" "Exit")
+                    if [[ $? -eq 1 ]]; then
+                      return
+                    fi
                       case $rowToUpdate in
                       "Exit")
-                        echo "Exiting..."
-                        break
+                        return
                         ;;
                       *)
-                        if [ -n "$rowToUpdate" ]; then
                           updatedRow=""
                           for (( i=0; i<${#columns[@]}; i++ )); do
                             currentValue=$(awk -F ":" -v col="$((i+1))" -v row="$rowToUpdate" '$0==row {print $col}' "./$updateTable")
                             type=$(awk -F ":" -v col="$((i+1))" 'NR==col {print $2}' "./.$updateTable"_metadata)
-                            read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                            newValueText="Enter new value (Type: $type) for column ${columns[$i]} (Current: $currentValue): "
+                            newValue=$(zenity --entry --title "Update Table" --text "$newValueText")
+                            if [[ $? -eq 1 ]]; then
+                              return
+                            fi
                             # check for type
                             while true; do
+                              while true; do
                               if [[ "$type" == "int" && ! $newValue =~ ^[0-9]+$ ]]; then
-                                  echo "Error: $newValue is not an integer, please type integer."
-                                  read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                                  newValueText="Erorr: The value must be an integer.\nEnter new value (Type: $type) for column ${columns[$i]} (Current: $currentValue): "
+                                  newValue=$(zenity --entry --title "Update Table" --text "$newValueText")
+                                  if [[ $? -eq 1 ]]; then
+                                    return
+                                  fi
                                   continue
                               fi
-                              echo "$newValue is valid $type input for ${columns[$i]}"
+                              typeFlag=1
                               break
-                            done
+                              done
+                            
                             # check for primary key
                             if [ $i -eq 0 ]; then
                               previousIds=$(awk -F : ' {print $1} ' ./$updateTable )
                               while true; do
                                 for previous in $previousIds; do
                                   if [[ "$previous" == "$newValue" && "$currentValue" != "$newValue" ]]; then
-                                    echo "Error: $newValue already exists, please try another id."
-                                    read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                                    newValueText="Erorr: The value must be unique.\nEnter new value (Type: $type) for column ${columns[$i]} (Current: $currentValue): "
+                                    newValue=$(zenity --entry --title "Update Table" --text "$newValueText")
+                                    if [[ $? -eq 1 ]]; then
+                                      return
+                                    fi
                                     break
                                   else
-                                    echo "$newValue is valid unique primary key input for ${columns[$i]}"
+                                    pkFlag=1
                                     break 2
                                   fi
                                 done
                               done
-                              updatedRow+="$newValue"
+                              if [[ $pkFlag -eq 1 && $typeFlag -eq 1 ]]; then
+                                updatedRow+="$newValue"
+                                break
+                              fi
                             # non primary key
                             else
-                              updatedRow+=":$newValue"
+                              if [ $typeFlag -eq 1 ]; then
+                                updatedRow+=":$newValue"
+                                break
+                              fi
                             fi
+                            done
                           done
                           awk -F ":" -v oldRow="$rowToUpdate" -v newRow="$updatedRow" 'BEGIN {OFS=FS} $0==oldRow {$0=newRow} {print}' "./$updateTable" > temp && mv temp "./$updateTable"
-                          echo "Row updated successfully."
-                          read -p "Press enter to continue..." exit
-                          if [[ -n $exit || $exit == "" ]]; then
-                            break
+                          
+                          exit=$(zenity --question --title "Update Table" --text "Row updated successfully.\nDo you want to do another operation?:")
+                          if [[ $? -eq 0 ]]; then
+                            return
+                          else
+                            exit 0
                           fi
-                      else
-                          echo "Invalid selection. Please try again."
-                        fi
                         ;;
                       esac
-                    done
-
-                    echo "Record updated successfully."
-                    break 2
-                  else
-                    echo "No records found with column $columnChoice = $searchValue"
-                    echo "Select another column number or $((${#columns[@]} + 1)) to exit"
-                  fi
-                else
-                  echo "Invalid column name."
-                fi
-                ;;
-              esac
-            done
-            ;;
-          "Specific Column")
-            echo "Please enter the name of the column you want to search: "
-            select choice in "${columns[@]}" "Exit"; do
-              case $choice in
-              "Exit")
-                echo "Exiting..."
-                break 2
-                ;;
-              *)
-                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
-                  read -p "Please enter the value of $choice to update: " searchValue
-                  # check if the value is in the table (strict no telda)
-                  found=$(awk -F ":" -v reply="$REPLY" -v value="$searchValue" '$reply == value {print $0}' "./$updateTable")
-
-                  if [ -n "$found" ]; then
-                    echo "Here are all records with column $choice = $searchValue in $updateTable"
-                    echo "============================================="
-                    echo "$found"
-                    echo "============================================="
-                    read -p "Are you sure you want to update these records? (y/n): " flag
-                    if [[ "yes" =~ $flag ]]; then
-                      read -p "Please enter the new value of $choice: " newValue
-                      awk -F ":" -v srCol="$REPLY" -v srch="$searchValue" -v new="$newValue" 'BEGIN {OFS=FS} $srCol==srch {$srCol=new} {print}' "./$updateTable" > temp && mv temp "./$updateTable"
-                      echo "${#found[@]} Records updated successfully."
-                      read -p "Press enter to continue..." exit
-                      if [[ -n $exit || $exit == "" ]]; then
-                        break 2
-                      fi
+                    exit=$(zenity --question --title "Update database" --text "Record updated successfully.\nDo you want to do another operation?: " --width 200 --height 200)
+                    if [[ $? -eq 0 ]]; then
+                      return
                     else
-                      echo "Update operation cancelled."
-                      break
+                      exit 0
                     fi
                   else
-                    echo "No records found with column $choice = $searchValue"
-                    echo "Select another column number or $((${#columns[@]} + 1)) to exit"
+                    searchValueText="No records found with column $columnChoice = $searchValue.\nPlease enter the value of $choice to search:"
                   fi
-                else
-                  echo "Invalid column name."
-                fi
+                  done
+                
                 ;;
               esac
-            done
+            
+            ;;
+          "Whole Column")
+            choice=$(zenity --list --title "Update Table" --text "Select a column to update it:" --column "Columns" "${columns[@]}" "Exit")
+            if [[ $? -eq 1 ]]; then
+              return
+            fi
+              case $choice in
+              "Exit")
+                return
+                ;;
+              *)
+                  type=$(awk -F ":" -v choice="$choice" '$1==choice {print $2}' "./.$updateTable"_metadata)
+                  nc=$(awk -F ":" -v choice="$choice" '$1==choice {print NR}' "./.$updateTable"_metadata)
+                  searchValue=$(zenity --entry --title "Update Table" --text "Please enter the value of $choice to update:")
+                  if [[ $? -eq 1 ]]; then
+                    return
+                  fi
+                  while true; do
+                    # check if the value is in the table (strict no telda)
+                    found=$(awk -F ":" -v numOfCol="$nc" -v value="$searchValue" '$numOfCol == value {print $0}' "./$updateTable")
+                    if [ -n "$found" ]; then
+                      
+                      question=$(zenity --question --title "Update Table" --text "${#found[@]} Records found with column $choice = $searchValue.\n${found[@]}\nAre you sure you want to update these records $choice"s"?: " --width 400 --height 400)
+                      
+                      if [[ $? -eq 0 ]]; then
+                        newValueText="Please enter the new value of $choice (Type: $type): "
+                        while true; do
+                          
+                          newValue=$(zenity --entry --title "Update Table" --text "$newValueText")
+                          if [[ $? -eq 1 ]]; then
+                            return
+                          fi
+                          if [[ $type == "int" && ! $newValue =~ ^[0-9]+$ ]]; then
+                            newValueText="Error: Value must be an integer.\nPlease enter the new value of $choice: "
+                            continue  
+                          fi
+                          awk -F ":" -v srCol="$REPLY" -v srch="$searchValue" -v new="$newValue" 'BEGIN {OFS=FS} $srCol==srch {$srCol=new} {print}' "./$updateTable" > temp && mv temp "./$updateTable"
+                          exit=$(zenity --question --title "Update Table" --text "Record updated successfully.\nDo you want to do another operation?: " --width 200 --height 200)
+                          if [[ $? -eq 0 ]]; then
+                            return
+                          else
+                            exit 0
+                          fi
+                        done
+                        
+                      else
+                        return
+                      fi
+                    else
+                      choice=$(zenity --list --title "Update Table" --text "No records found with column $choice = $searchValue.\nPlease enter the value of $choice to update:" --column "Columns" "${columns[@]}")
+                      if [[ $? -eq 1 ]]; then
+                        return
+                      fi
+                    fi
+                  done
+                ;;
+              esac
             ;;
           *)
-            echo "Invalid selection. Please try again."
+            return
             ;;
           esac
-        done
-      else
-        echo "Table with number $REPLY does not exist."
-      fi
-      break
       ;;
     esac
-  done
 }
 
 function deleteFromTable() {
   # implement remove logic
   getTables
-  PS3="Please select a number from the menu: "
   option6=$(zenity --list --column="Menu" "${tables[@]}" "Exit" --title="Delete From table" --text="Please choose the table you want to Delete From: ")
   if [[ $? -eq 1 ]]; then
     return
@@ -770,6 +852,9 @@ function deleteFromTable() {
     *)
       tableName=$option6
         choice2=$(zenity --list --column="Delete options" "By id" "By Column" "All" "Exit" --title="Delete From table" --text="Please choose the way you want to Delete From: ")
+          if [[ $? -eq 1 ]]; then
+            return
+          fi
           case $choice2 in #second
             "By id")
               pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
@@ -780,7 +865,6 @@ function deleteFromTable() {
                 while true;
                   do #third
                     idExistFlag=false
-                    # read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
                     pkInput=$(zenity --entry --title="Delete From table" --text="$pkInputName")
                     if [[ $? -eq 1 ]]; then
                       return
@@ -803,9 +887,12 @@ function deleteFromTable() {
                       #if primary key exist we delete the whole row which include this Id using sed command,
                       if [[ "$idExistFlag" == "true" ]];then
                         sed -i "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
-                        echo "Row is deleted successfully"
-                        echo "==============================="
-                        break #from third
+                        exit=$(zenity --question --title "Delete From table" --text "Record deleted successfully.\nDo you want to do another operation?: " --width 200 --height 200)
+                        if [[ $? -eq 0 ]]; then
+                          return
+                        else
+                          exit 0
+                        fi
                       else
                         pkInputName="Error: $pkInput is not found.\nPlease Enter $pkName of the row you want to delete (Only Numbers are accepted): "
                       fi
@@ -822,7 +909,6 @@ function deleteFromTable() {
               values=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
               namesArray=($names)
               typesArray=($types)
-              #select option5 in "${namesArray[@]}";do #five
               option5=$(zenity --list --column="Columns" "${namesArray[@]}" "Exit" --title="Delete From table" --text="Please choose the column you want to Delete From: ")
               if [[ $? -eq 1 ]]; then
                 return
@@ -841,8 +927,10 @@ function deleteFromTable() {
                       #ask the user to enter the column value of the row he wants to delete.
                       while true ;do #six
                         columnExistflag=false
-                        #read -p "Please Enter $option5 of the row you want to delete : " colValueInput
                         colValueInput=$(zenity --entry --title="Delete From table" --text="Please Enter $option5 of the row you want to delete : ")
+                        if [[ $? -eq 1 ]]; then
+                          return
+                        fi
                         colInputIndexes=()
                         #loop over all the column values to check if the entered column exist or no,
                         #and store all columns index that match the user input in an array.
@@ -858,10 +946,9 @@ function deleteFromTable() {
                           # to delete all rows with index stored in the array.
                           for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
                             sed -i "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
-                            echo "Row is deleted successfully"
+                            
                           done
-                          echo "=============================="
-                          break #from six
+                          exit=$(zenity --question --title "Delete From table" --text "${#colInputIndexes[@]} Records deleted successfully.\nDo you want to do another operation?: " --width 200 --height 200)
                         else
                           echo "this $colValueInput is not found please try again."
                         fi
@@ -877,9 +964,12 @@ function deleteFromTable() {
               case $verification in
                 "Yes")
                   sed -i "d" ./$tableName #to delete the entire content of the file
-                  echo "Deleted the entire content of $tableName. "
-                  echo "============================================="
-                  return
+                  exit=$(zenity --question --title "Delete From table" --text "All Records deleted successfully.\nDo you want to do another operation?: " --width 200 --height 200)
+                  if [[ $? -eq 0 ]]; then
+                    return
+                  else
+                    exit 0
+                  fi
                   ;;
                 "No")
                   return
@@ -899,22 +989,26 @@ function deleteFromTable() {
 function dropTable() {
   getTables
   TBdrop=$(zenity --list --title "Drop Table" --text "Select a table" --column "Tables" "${tables[@]}" "Exit")
+    if [[ $? -eq 1 ]]; then
+      return
+    fi
     case $TBdrop in
     "Exit")
-      echo "Exiting..."
-      break
+      return
       ;;
     *)
-        # read -p "Are you sure you want to permanently drop $TBdrop? [y/n]: " dropFlag
         dropFlag=$(zenity --list --title "Drop Table" --text "Are you sure you want to permanently drop $TBdrop? [y/n]: " --column "Menu" "Yes" "No")
         if [[ $? -eq 1 ]]; then
           return
         elif [[ "$dropFlag" == "Yes" ]]; then
           rm "$TBdrop"
           rm "./.$TBdrop"_metadata
-          echo "$TBdrop is successfully dropped"
-          echo "============================================="
-          read -p "Press enter to continue..."
+          exit=$(zenity --question --title "Drop Table" --text "$TBdrop is successfully dropped.\nDo you want to do another operation?: " --width 200 --height 200)
+          if [[ $? -eq 0 ]]; then
+            return
+          else
+            exit 0
+          fi
         else
           return
         fi
@@ -926,9 +1020,5 @@ function getTables() {
   # get tables (list all except dir (/) and hidden files (\.))
   tables=($(ls -p | grep -v / | grep -v "^\."))
 }
-# function tableMenu(){
-#   tableMenu="================\nCurrent DB: $1,\n================\n1)Create table\n2)List tables\n3)Insert into Table\n4)Select From Table\n5)Update Table\n6)Delete From Table\n7)Drop Table\n8)Exit"
-#   echo -e $tableMenu
-# }
 
 main
