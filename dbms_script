@@ -385,7 +385,7 @@ function createTable() {
     echo "==========================================================="
     read -p "Press enter to continue..." exit
     if [[ -n $exit || $exit == "" ]]; then
-      break
+      return
     fi
   fi
 }
@@ -398,7 +398,7 @@ function listTables() {
   echo "=========================="
   read -p "Press enter to continue..." exit
   if [[ -n $exit || $exit == "" ]]; then
-    break
+    return
   fi
 }
 
@@ -517,7 +517,7 @@ function insertTable() {
           echo "================================================================================"
           read -p "Press enter to continue..." exit
           if [[ -n $exit || $exit == "" ]]; then
-            break
+            return
           fi
           
           
@@ -553,7 +553,7 @@ function selectTable() {
             echo "===============" && echo "All data in $searchTable: " && echo "===============" && cat ./"$searchTable" && echo "==============="
             read -p "Press enter to continue..." exit
             if [[ -n $exit || $exit == "" ]]; then
-              break 2
+              return
             fi
             #break 2
             ;;
@@ -603,7 +603,7 @@ function selectTable() {
                     echo "============="
                     read -p "Press enter to continue..." exit
                     if [[ -n $exit || $exit == "" ]]; then
-                      break 3
+                      return
                     fi
                   else
                     echo "No records found with column $choice = $value"
@@ -633,7 +633,7 @@ function selectTable() {
                         echo "$projection"
                         read -p "Press enter to continue..." exit
                         if [[ -n $exit || $exit == "" ]]; then
-                          break 3
+                          return
                         fi
                       else
                         echo "wrong column name"
@@ -745,7 +745,7 @@ function updateTable() {
                           echo "Row updated successfully."
                           read -p "Press enter to continue..." exit
                           if [[ -n $exit || $exit == "" ]]; then
-                            break
+                            return
                           fi
                       else
                           echo "Invalid selection. Please try again."
@@ -793,7 +793,7 @@ function updateTable() {
                       echo "${#found[@]} Records updated successfully."
                       read -p "Press enter to continue..." exit
                       if [[ -n $exit || $exit == "" ]]; then
-                        break 2
+                        return
                       fi
                     else
                       echo "Update operation cancelled."
@@ -1002,7 +1002,7 @@ function dropTable() {
           
           read -p "Press enter to continue..." exit
           if [[ -n $exit || $exit == "" ]]; then
-            break
+            return
           fi
         else
           echo "Table drop operation cancelled."
