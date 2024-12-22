@@ -670,6 +670,7 @@ function updateTable() {
                 return
                 ;;
               *)
+                  num=$(awk -F ":" -v name="$choice" '$1 == name {print NR}' "./.$updateTable"_metadata)
                   # check if the value is in the table (regex for easier matching)
                   searchValueText="Please enter the value of $choice to search"
                   while true; 
@@ -678,7 +679,7 @@ function updateTable() {
                   if [[ $? -eq 1 ]]; then
                     return
                   fi
-                  found=$(awk -F ":" -v reply="$REPLY" -v value="$searchValue" '$reply ~ value {print $0}' "./$updateTable")
+                  found=$(awk -F ":" -v num="$num" -v value="$searchValue" '$num ~ value {print $0}' "./$updateTable")
 
                   if [ -n "$found" ]; then
                     
@@ -731,9 +732,11 @@ function updateTable() {
                                     break
                                   else
                                     pkFlag=1
-                                    break 2
                                   fi
                                 done
+                                if [[ $pkFlag -eq 1 ]]; then
+                                  break
+                                fi
                               done
                               if [[ $pkFlag -eq 1 && $typeFlag -eq 1 ]]; then
                                 updatedRow+="$newValue"
