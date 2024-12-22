@@ -1,6 +1,20 @@
-This is a project of a Database management system using bash, Done during ITI 4 months intensive Code camp of track: Full stack web development using python.
-There are 2 versions: 1 with GUI and 1 without GUI.
-You can find all commits of the version without GUI in dev branch, and all the commits of the GUI version in GUI branch.
+# Bash-Based Database Management System
 
-Done by : Omar Sameh and Hussein Saad
+This project is a Database Management System (DBMS) implemented using **Bash scripting**. It was created as part of the **ITI 4-Month Intensive Code Camp** under the track: **Full Stack Web Development using Python**.
 
+## Features
+- **Two Versions**:
+  1. **Command-Line Interface (CLI)**: Available in the `dev` branch.
+  2. **Graphical User Interface (GUI)**: Available in the `GUI` branch using `Zenity`.
+
+## Project Structure
+- All commits for the **CLI version** can be found in the `dev` branch.
+- All commits for the **GUI version** can be found in the `GUI` branch.
+
+## Authors
+- Omar Sameh
+- Hussein Saad
+
+---
+
+Thank you for exploring our project!
