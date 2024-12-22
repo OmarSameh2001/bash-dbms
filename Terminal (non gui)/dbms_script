@@ -1,0 +1,1023 @@
+#!/bin/bash
+
+# variable for base directory and database count
+BaseDir=$(pwd)
+DBCount=
+# for special characters validation
+shopt -s extglob
+
+# Main function
+function main {
+  # start menu
+  echo "=========================================="
+  echo "Welcome to ITI DBMS"
+  echo "Working directory: $BaseDir"
+  echo "This directory contains $(ls -d */ | wc -l) databases"
+  echo "=========================================="
+
+  select option1 in "Create database" "List databases" "Connect to database" "Drop database" "Exit"; do
+    if [ $(pwd) != $BaseDir ]; then
+      cd ${BaseDir}
+      echo "returned to base directory: $BaseDir"
+    fi
+    case $option1 in
+    "Create database")
+      createDB
+      dbMenu
+      ;;
+    "List databases")
+      checkDB
+      flag=$?
+      if [ $flag -eq 0 ]; then 
+        listDB
+      fi
+      dbMenu
+      ;;
+    "Connect to database")
+      checkDB
+      flag=$?
+      if [ $flag -eq 0 ]; then
+        connectDB
+      fi
+      dbMenu
+      ;;
+    "Drop database")
+      checkDB
+      flag=$?
+      if [ $flag -eq 0 ]; then
+        dropDB
+      fi
+      dbMenu
+      ;;
+    "Exit")
+      break
+      ;;
+    *)
+      echo "Invalid option. Please try again."
+      dbMenu
+      ;;
+    esac
+  done
+}
+
+
+# create database
+function createDB() {
+  while true
+  do
+    read -p "Please enter your DB name: " DBName
+    if [[ 'exit' =~ $DBName ]] ; then
+      echo "Exiting..."
+      break
+    fi
+    # check if name starts with letter and replace spaces with _
+    if [[ ${DBName:0:1} =~ [a-zA-Z] ]] && [[ $DBName =~ ^[a-zA-Z0-9[:space:]]*$ ]] ; then
+      DBName=${DBName// /_}
+    else
+      echo "Name should start with a letter and has no special characters"
+      continue
+    fi
+    if [ -d "./$DBName" ] ; then
+      echo "$DBName already exists"
+      continue
+    fi
+    mkdir "$DBName"
+    echo "Successfully created $DBName"
+    break
+  done
+}
+
+# list databases
+function listDB() {
+  echo "=========================="
+  echo "Databases list:"
+  echo "=========================="
+  # multi line
+  ls -d */ | sed 's/[/]/ /g'
+  echo "=========================="
+}
+
+# connect to database by cd to its directory
+function connectDB() {
+  getDB
+  echo "============================================================="
+  echo "Connecting to Database"
+  echo "Please enter the number of the database you want to connect: "
+  echo "============================================================="
+  select option2 in "${databases[@]}" "Exit"; do
+    case $option2 in
+    "Exit")
+      echo "Exiting..."
+      break
+      ;;
+    *)
+      DBConnect=$option2
+      if [[ -d "$DBConnect" ]]; then
+        cd "$DBConnect"
+        accessTables "$DBConnect"
+        # after exit accessTables (disconnect)
+        cd ..
+        echo "Disconnected from DB $DBConnect"
+        break
+      else
+        # $REPLY is the selected number
+        echo "Database with number $REPLY does not exist."
+        echo "Please enter valid number for the database you want: "
+      fi
+      ;;
+    esac
+  done
+}
+
+# drop database
+function dropDB() {
+  getDB
+  echo "==========================================================="
+  echo "Dropping Database"
+  echo "Please enter the number of the database you want to drop: "
+  echo "==========================================================="
+  select option2 in "${databases[@]}" "Exit"; do
+    case $option2 in
+    "Exit")
+      echo "Exiting..."
+      break
+      ;;
+    *)
+      DBDrop=$option2
+      if [[ -d "$DBDrop" ]]; then
+        read -p "Are you sure you want to permanently drop $DBDrop? [y/n]: " dropFlag
+        if [[ "yes" =~ "$dropFlag" ]]; then
+          rm -r "$DBDrop"
+          echo "$DBDrop is successfully dropped"
+          break
+        else
+          echo "Database drop cancelled."
+          break
+        fi
+      else
+        echo "Database with number $REPLY does not exist."
+        echo "Please enter valid number for the database you want to drop: "
+      fi
+      ;;
+    esac
+  done
+}
+
+
+# Check if any DB exists
+function checkDB() {
+  if [ $(ls -d */ 2> /tmp/err | wc -w) -eq 0 ]; then
+    echo "No databases found."
+    return 1
+  fi
+}
+
+# get all databases
+function getDB() {
+  databases=($(ls -d */ | sed 's/[/]//g'))
+  return
+}
+
+# print db menu again
+function dbMenu(){
+  db="==========================\nCurrent Directory: $BaseDir\nThis directory contains $(ls -d */ | wc -l) databases.\n==========================\n1)Create database\n2)List databases\n3)Connect to database\n4)Drop database\n5)Exit"
+  echo -e $db
+}
+
+# ===========================
+# Table functions
+# ===========================
+
+
+function accessTables() {
+  echo "=========================================="
+  echo "Welcome to $1 database in $(pwd)"
+  echo "=========================================="
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  if [[ -n ${tables[@]} ]]; then
+    select option3 in "Create table" "List tables" "Insert into Table" "Select From Table" "Update Table" "Delete From Table" "Drop Table" "Exit"; do
+    case $option3 in
+    "Create table")
+      createTable
+      tableMenu $1
+      ;;
+    "List tables")
+      listTables $1
+      tableMenu $1
+      ;;
+    "Drop Table")
+      dropTable
+      tableMenu $1
+      ;;
+    "Insert into Table")
+      insertTable
+      tableMenu $1
+      ;;
+    "Select From Table")
+      selectTable
+      tableMenu $1
+      ;;
+    "Update Table")
+      updateTable
+      tableMenu $1
+      ;;
+    "Delete From Table")
+      deleteFromTable
+      tableMenu $1
+      ;;
+    "Exit")
+      break
+      ;;
+    *)
+      echo "Invalid entry. Please try again."
+      ;;
+    esac
+  done 
+  else
+    echo "To access the full menu please create a table"
+    select option3 in "Create table" "Exit"; do
+    case $option3 in
+    "Create table")
+      createTable
+      echo $menu
+      ;;
+    "Exit")
+      break
+      ;;
+    *)
+      echo "Invalid entry. Please try again."
+      ;;
+    esac
+  done
+  fi
+}
+
+# implement (int, str, primary key) in metadata file, and tablename validation
+function createTable() {
+  while true
+    do
+  read -p "Please enter new table's name or type exit: " tableName
+    case $tableName in
+    @([eE][xX][iI][tT]))
+      echo "exiting.."
+      return
+      ;;
+    #Validation for tableName that it always starts with a letter only,
+    #doesn't have any special characters,
+    #Spaces are changed into an underscore.
+    +([a-zA-Z])*([a-zA-Z0-9|" "]))
+      tableName=${tableName/" "/"_"}
+      echo "$tableName is a valid name"
+      break
+      ;;
+    *)
+      echo "Name should start with only letters and can't have any special characters."
+      ;;
+    esac
+  done
+  #check if table already exist or no.
+  if [ -e "./$tableName" ]; then
+    echo "Table $tableName already exists"
+    return
+  else
+    while true
+      do
+        read -p "Enter the number of columns in the table: " colNum
+        # Validation for number of columns in table can only be numbers and greater than 0.
+        if [[ $colNum =~ ^[0-9]+$ && $colNum -gt 0 ]]; then
+          break
+        else
+          echo "Error: Number of columns must be a positive integer"
+        fi
+      done
+    # Iterate over the number of columns the user entered.
+    for ((i=0;i<$colNum;i++))
+    do
+      line=""
+      #If we are at first Column,then here is where the user enters his primary key of table.
+      if [[ $i -eq 0 ]]
+      then
+        while true
+        do
+          read -p "Please enter the name of your primary key column " colName
+          case $colName in
+          # Validation for name  of column can start with a letter only,
+          # doesn't have special characters and spaces are changed into an underscore.
+          +([a-zA-Z])*([a-zA-Z0-9|" "]))
+            colName=${colName/" "/"_"}
+            line+=$colName
+            break
+            ;;
+          *)
+            echo "column Name should start with only letters and can't have any special characters."
+            ;;
+          esac
+        done
+
+        while true
+        do
+          read -p "Please enter the primary key column type (int/str): " colType
+          # Here we make sure that user only enters the type of column to be only int or str.
+          case $colType in
+          "int")
+            line+=:$colType
+            break
+            ;;
+
+          "str")
+            line+=:$colType
+            break
+            ;;
+          *)
+            echo "Invalid entry, please enter (int/str)."
+            ;;
+          esac
+        done
+        line+=:pk
+
+      else # For all iterations after PK is inserted.
+        while true
+          do
+            read -p "Please enter the name of column number $((i + 1)) : " colName
+            case $colName in
+            #same validation done for PK name.
+            +([a-zA-Z])*([a-zA-Z0-9|" "]))
+              colName=${colName/" "/"_"}
+              line+=$colName
+              break
+              ;;
+            *)
+              echo "column Name should start with only letters and can't have any special characters. "
+              ;;
+            esac
+          done
+
+        while true
+          do
+            read -p "Please enter type of column number $((i + 1)) (int/str): " colType
+            #same validation done for pk type.
+            case $colType in
+            "int")
+              line+=:$colType
+              break
+              ;;
+
+            "str")
+              line+=:$colType
+              break
+              ;;
+            *)
+              echo "Invalid entry, please enter (int/str). "
+              ;;
+            esac
+        done
+
+      fi
+    # Here we append the data to the tableName metadata. 
+    echo $line >> .$tableName"_metadata"
+
+    done
+
+    
+    # Create the table file.
+    touch "$tableName"
+    echo "Table $tableName is successfully created"
+    echo "==========================================================="
+    read -p "Press enter to continue..." exit
+    if [[ -n $exit || $exit == "" ]]; then
+      return
+    fi
+  fi
+}
+
+function listTables() {
+  echo "=========================="
+  echo "Tables list in $1 database:"
+  echo "=========================="
+  ls -p | grep -v / | grep -v "^\."
+  echo "=========================="
+  read -p "Press enter to continue..." exit
+  if [[ -n $exit || $exit == "" ]]; then
+    return
+  fi
+}
+
+
+# implement insert logic
+# pseudocode:
+# 1) ask user to enter name of table he want to insert to.
+# 2) perform name validation.
+# 3)get the pk column from metadata.
+
+function insertTable() {
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  echo "Here are the tables in this database: "
+  echo "================================================================================"
+  tablesArray=($tables)
+  PS3="Please select a number from the menu: "
+  select option7 in "${tablesArray[@]}";do # number 1
+    case $REPLY in
+      #to verify that user enters correct number from the menu.
+      [1-9]*)
+        tableName=$option7
+        if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} ));then
+          echo "================================================================================"
+          #get column types and names from metadata.
+          types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+          names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+          #to change string to an array. ==> hello my friend --> [hello,my,friend]
+          namesArray=($names)
+          typesArray=($types)
+          echo "Columns in table $tableName :"
+          echo "${namesArray[@]}"
+          echo "================================================================================"
+          #get number of columns from metadata
+          numberOfColumns=$(awk -F : ' {} END {print NR}' ./"."$tableName"_metadata" )
+          newTableLine=""
+          for (( i=0;i<numberOfColumns;i++ ));do #number 2
+            if [[ "${typesArray[$i]}" == "int" ]];then
+              while true;do #number 3
+                duplicateFlag=false
+                read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
+                if [[ $columnInput =~ ^[0-9]+$ && $columnInput -ge 0 ]];then
+                  previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                  if [[ $i -eq 0 ]];then
+                    for previous in $previousIds;do #number 4
+                      if [[ "$previous" == "$columnInput" ]];then
+                        echo "Error: $columnInput already exists, Please type try another id "
+                        duplicateFlag="true"
+                        break #from number 4
+                      fi
+                    done
+                    if [[ "$duplicateFlag" == "false" ]];then
+                      newTableLine+=$columnInput
+                      break #from number 3
+                      continue # to number 2
+                    fi
+                  else
+                  newTableLine+=":$columnInput"
+                  fi
+                    
+                  if [[ "$duplicateFlag" == "true" ]]
+                  then
+                    continue # to number 2
+                  else
+                    break #from number 3
+                    continue #to number 2
+                  fi
+                    
+                else
+                  echo "Error ${namesArray[$i]} should be integer number "
+                fi
+              done
+            #to handle if the column is a string.
+            else
+              while true ;do #number 5
+                duplicateFlag=false
+                read -p "Enter the ${typesArray[$i]} value for column ${namesArray[$i]}: " columnInput
+                  #change all string primary keys to lowercase before handling duplication
+                  columnInput=$(echo "$columnInput"| awk '{print tolower($0)}')
+                  previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                  if [[ $i -eq 0 ]];then
+                    for previous in $previousIds
+                    do
+                      if [[ "$previous" == "$columnInput" ]]
+                      then
+                        echo "Error: $columnInput already exists, Please type try another id "
+                        duplicateFlag="true"
+                        break
+                      fi
+                    done
+                    if [[ "$duplicateFlag" == "false" ]]
+                    then
+                      newTableLine+=$columnInput
+                      break
+                      continue
+                    fi
+                  else
+                    newTableLine+=":$columnInput"
+                  fi
+                    
+                  if [[ "$duplicateFlag" == "true" ]]
+                  then
+                    continue
+                  else
+                    break
+
+                    continue
+                  fi
+              done
+                
+              continue
+
+            fi
+          done
+          echo $newTableLine >> ./$tableName
+          echo "Data inserted successfully"
+          echo "================================================================================"
+          read -p "Press enter to continue..." exit
+          if [[ -n $exit || $exit == "" ]]; then
+            return
+          fi
+          
+          
+          echo "exiting.."
+          break
+        
+        else
+        echo "Error: Please enter a valid number from the menu and try again... "
+        fi
+        ;;
+      *)
+        echo "Error, Please enter a numbers only and try again... "
+    esac
+  done
+  return
+}
+
+function selectTable() {
+  tables=($(ls -p | grep -v / | grep -v "^\."))
+  echo "Please enter the name or number of the table you want: "
+  select searchTable in "${tables[@]}" "Exit"; do
+    case $searchTable in
+    "Exit")
+      echo "Exiting..."
+      break
+      ;;
+    *)
+      if [ -f "./$searchTable" ]; then
+        echo "Select condition:"
+        select selectCondition in "All" "By Column" "Projection" "Exit"; do
+          case $selectCondition in
+          "All")
+            echo "===============" && echo "All data in $searchTable: " && echo "===============" && cat ./"$searchTable" && echo "==============="
+            read -p "Press enter to continue..." exit
+            if [[ -n $exit || $exit == "" ]]; then
+              return
+            fi
+            #break 2
+            ;;
+          "By Column")
+              columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
+              
+                echo "Please enter the number of the column you want: "
+                select choice in "${columns[@]}" "Exit"; do
+                case $choice in
+                "Exit")
+                  echo "Exiting..."
+                  break 3
+                  ;;
+                *)
+                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
+                  read -p "Please enter the value of $choice: " value
+                  echo "Please enter the comparison operator: "
+                  column="$REPLY"
+                  select comparison in "Exact match" "Regular expression (like %%)" "Exit"; do
+                    case $comparison in
+                    "Exit")
+                      echo "Exiting..."
+                      break 4
+                      ;;
+                    "Exact match")
+                      compare="=="
+                      break
+                      ;;
+                    "Regular expression (like %%)")
+                      compare="~"
+                      break
+                      ;;
+                    *)
+                      echo "Invalid option."
+                      ;;
+                    esac
+                  done
+                  if [[ $compare == "==" ]]; then
+                    found=$(awk -F ":" -v reply="$column" -v value="$value" '$reply == value {print $0}' "./$searchTable")
+                  elif [[ $compare == "~" ]]; then
+                    found=$(awk -F ":" -v reply="$column" -v value="$value" '$reply ~ value {print $0}' "./$searchTable")
+                  fi
+                  if [ -n "$found" ]; then
+                    echo "Here is all records with column $choice = $value in $searchTable"
+                    echo "============="
+                    echo "$found"
+                    echo "============="
+                    read -p "Press enter to continue..." exit
+                    if [[ -n $exit || $exit == "" ]]; then
+                      return
+                    fi
+                  else
+                    echo "No records found with column $choice = $value"
+                    echo "Select another column number or $((${#columns[@]} + 1)) to exit"
+                  fi
+                else
+                  echo "Invalid column name."
+                fi
+                  ;;
+                esac
+              done
+              break
+            ;;
+          "Projection")
+            columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
+                echo "Please enter the name of the column you want to project: "
+                select choice in "${columns[@]}" "Exit"; do
+                  case $choice in 
+                    "Exit")
+                      echo "Exiting..."
+                      break 3
+                      ;;
+                    *)
+                      if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
+                        projection=$(awk -F ":" -v reply="$REPLY" '{print $reply}' "./$searchTable")
+                        echo "Projection for column $choice in table $searchTable: "
+                        echo "$projection"
+                        read -p "Press enter to continue..." exit
+                        if [[ -n $exit || $exit == "" ]]; then
+                          return
+                        fi
+                      else
+                        echo "wrong column name"
+                      fi
+                      ;;
+                esac
+                done
+            ;;
+          "Exit")
+            echo "Exiting..."
+            break
+            ;;
+          esac
+        done
+      else
+        echo "Table with number $REPLY does not exist."
+      fi
+      ;;
+    esac
+  done
+}
+
+function updateTable() {
+  # get tables (list all except dir (/) and hidden files (\.))
+  tables=($(ls -p | grep -v / | grep -v "^\."))
+  echo "Please enter the number of the table you want to update: "
+  select updateTable in "${tables[@]}" "Exit"; do
+    case $updateTable in
+    "Exit")
+      echo "Exiting..."
+      break
+      ;;
+    *)
+      if [ -f "./$updateTable" ]; then
+        columns=($(awk -F ":" '{print $1}' "./.$updateTable"_metadata))
+
+        echo "Please enter update option you want: "
+        select columnChoice in "Specific Column" "Whole Row" "Exit"; do
+          case $columnChoice in
+          "Exit")
+            echo "Exiting..."
+            break 2
+            ;;
+          "Whole Row")
+            echo "Please enter the number of the column you want to search: "
+            select choice in "${columns[@]}" "Exit"; do
+              case $choice in
+              "Exit")
+                echo "Exiting..."
+                break 3
+                ;;
+              *)
+                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
+                  read -p "Please enter the value of $columnChoice to search: " searchValue
+                  # check if the value is in the table (regex for easier matching)
+                  found=$(awk -F ":" -v reply="$REPLY" -v value="$searchValue" '$reply ~ value {print $0}' "./$updateTable")
+
+                  if [ -n "$found" ]; then
+                    echo "Here are all records with column $columnChoice = $searchValue in $updateTable"
+                    echo "Choose the row you want to update:"
+                    echo "============="
+                    # convert to array to use select
+                    foundArray=($found)
+                    select rowToUpdate in "${foundArray[@]}" "Exit"; do
+                      case $rowToUpdate in
+                      "Exit")
+                        echo "Exiting..."
+                        break
+                        ;;
+                      *)
+                        if [ -n "$rowToUpdate" ]; then
+                          updatedRow=""
+                          for (( i=0; i<${#columns[@]}; i++ )); do
+                            currentValue=$(awk -F ":" -v col="$((i+1))" -v row="$rowToUpdate" '$0==row {print $col}' "./$updateTable")
+                            type=$(awk -F ":" -v col="$((i+1))" 'NR==col {print $2}' "./.$updateTable"_metadata)
+                            read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                            # check for type
+                            while true; do
+                              if [[ "$type" == "int" && ! $newValue =~ ^[0-9]+$ ]]; then
+                                  echo "Error: $newValue is not an integer, please type integer."
+                                  read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                                  continue
+                              fi
+                              echo "$newValue is valid $type input for ${columns[$i]}"
+                              break
+                            done
+                            # check for primary key
+                            if [ $i -eq 0 ]; then
+                              previousIds=$(awk -F : ' {print $1} ' ./$updateTable )
+                              while true; do
+                                for previous in $previousIds; do
+                                  if [[ "$previous" == "$newValue" && "$currentValue" != "$newValue" ]]; then
+                                    echo "Error: $newValue already exists, please try another id."
+                                    read -p "Enter new value for column ${columns[$i]} (Current: $currentValue): " newValue
+                                    break
+                                  else
+                                    echo "$newValue is valid unique primary key input for ${columns[$i]}"
+                                    break 2
+                                  fi
+                                done
+                              done
+                              updatedRow+="$newValue"
+                            # non primary key
+                            else
+                              updatedRow+=":$newValue"
+                            fi
+                          done
+                          awk -F ":" -v oldRow="$rowToUpdate" -v newRow="$updatedRow" 'BEGIN {OFS=FS} $0==oldRow {$0=newRow} {print}' "./$updateTable" > temp && mv temp "./$updateTable"
+                          echo "Row updated successfully."
+                          read -p "Press enter to continue..." exit
+                          if [[ -n $exit || $exit == "" ]]; then
+                            return
+                          fi
+                      else
+                          echo "Invalid selection. Please try again."
+                        fi
+                        ;;
+                      esac
+                    done
+
+                    echo "Record updated successfully."
+                    break 2
+                  else
+                    echo "No records found with column $columnChoice = $searchValue"
+                    echo "Select another column number or $((${#columns[@]} + 1)) to exit"
+                  fi
+                else
+                  echo "Invalid column name."
+                fi
+                ;;
+              esac
+            done
+            ;;
+          "Specific Column")
+            echo "Please enter the number of the column you want to search: "
+            select choice in "${columns[@]}" "Exit"; do
+              case $choice in
+              "Exit")
+                echo "Exiting..."
+                break 2
+                ;;
+              *)
+                if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
+                  read -p "Please enter the value of $choice to update: " searchValue
+                  # check if the value is in the table (strict no telda)
+                  found=$(awk -F ":" -v reply="$REPLY" -v value="$searchValue" '$reply == value {print $0}' "./$updateTable")
+
+                  if [ -n "$found" ]; then
+                    echo "Here are all records with column $choice = $searchValue in $updateTable"
+                    echo "============================================="
+                    echo "$found"
+                    echo "============================================="
+                    read -p "Are you sure you want to update these records? (y/n): " flag
+                    if [[ "yes" =~ $flag ]]; then
+                      read -p "Please enter the new value of $choice: " newValue
+                      awk -F ":" -v srCol="$REPLY" -v srch="$searchValue" -v new="$newValue" 'BEGIN {OFS=FS} $srCol==srch {$srCol=new} {print}' "./$updateTable" > temp && mv temp "./$updateTable"
+                      echo "Records updated successfully."
+                      read -p "Press enter to continue..." exit
+                      if [[ -n $exit || $exit == "" ]]; then
+                        return
+                      fi
+                    else
+                      echo "Update operation cancelled."
+                      break
+                    fi
+                  else
+                    echo "No records found with column $choice = $searchValue"
+                    echo "Select another column number or $((${#columns[@]} + 1)) to exit"
+                  fi
+                else
+                  echo "Invalid column name."
+                fi
+                ;;
+              esac
+            done
+            ;;
+          *)
+            echo "Invalid selection. Please try again."
+            ;;
+          esac
+        done
+      else
+        echo "Table with number $REPLY does not exist."
+      fi
+      break
+      ;;
+    esac
+  done
+}
+
+function deleteFromTable() {
+  # implement remove logic
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  echo "Here are the tables in this database: "
+  echo "================================================================================"
+  tablesArray=($tables)
+  PS3="Please select a number from the menu: "
+  select option6 in "${tablesArray[@]}";do #outer select
+    # read -p "Please enter the name of the table you want to Delete From: " choice
+    case $REPLY in
+      [1-9]*)
+        tableName=$option6
+        #Validation of outer select
+        if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} )); then
+          echo "================================================================================"
+          select choice2 in "By id" "By Column" "All" "Exit"; do
+            case $choice2 in #second
+              "By id")
+                pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
+                pkName=$(awk -F : ' {if(NR==1){print $1}} ' ./"."$tableName"_metadata" )
+                #Incase we have integer primary key
+                if [[ "$pktype" == "int"  ]];then
+                  while true ;do #third
+                    idExistFlag=false
+                    read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
+                    #integer input validation.
+                    if [[ $pkInput =~ ^[0-9]+$ && $pkInput -ge 0 ]]; then
+                      #store all previous Ids in a variable
+                      previousIds=$(awk -F : ' {print $1} ' ./$tableName )
+                      #change all previous Ids string to array
+                      previousIdsArray=($previousIds)
+                      previousIdsCount=$(awk -F : ' END {print NR}' ./$tableName )
+                      pkInputIndex=0
+                      #Loop over all the previous ids to check if the entered PK exist or no.
+                      for (( i=0;i<previousIdsCount;i++ ));do #fourth
+                        if [[ "${previousIdsArray[$i]}" == "$pkInput" ]];then
+                          idExistFlag=true
+                          ((pkInputIndex=$i+1))
+                          break #from fourth
+                        fi
+                      done
+                      #if primary key exist we delete the whole row which include this Id using sed command,
+                      if [[ "$idExistFlag" == "true" ]];then
+                        sed -i "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                        echo "Row is deleted successfully"
+                        echo "================================================================================"
+                        break #from third
+                      else
+                        echo "this $pkName is not found please try again."
+                      fi
+                      
+                      
+                    else
+                      echo "Error: Number must be a positive integer"
+                    fi
+                  done
+                fi
+                break #from second
+                ;;
+              "By Column")
+                #get stored column names.
+                names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
+                namesArray=($names)
+                select option5 in "${namesArray[@]}";do #five
+                  case $REPLY in
+                    [1-9]*)
+                      #validation of the select five.
+                      if (( $REPLY >= 1 && $REPLY <= ${#namesArray[@]} )); then # #is used to get the length of the array
+                        #get the fieldNumber of the column the user wants to delete
+                        FieldNumber=$(awk -F : -v option="$option5" ' {if($1==option){print NR}} ' ./"."$tableName"_metadata" )
+                        #store all the values of the selected column.
+                        columnValues=$(awk -F : -v fieldNumber="$FieldNumber" ' {print $fieldNumber} ' ./$tableName )
+                        #change from string to array.
+                        columnValuesArray=($columnValues)
+                        #ask the user to enter the column value of the row he wants to delete.
+                        while true ;do #six
+                          columnExistflag=false
+                          read -p "Please Enter $option5 of the row you want to delete : " colValueInput
+                          colInputIndexes=()
+                          #loop over all the column values to check if the entered column exist or no,
+                          #and store all columns index that match the user input in an array.
+                          for (( i=0;i<${#columnValuesArray[@]};i++ ));do #seven
+                            if [[ "${columnValuesArray[$i]}" == "$colValueInput" ]];then
+                              columnExistflag=true
+                              colInputIndexes+=($((i + 1))) #array.
+                            fi
+                          done
+                          echo "the colInputIndex to be delted are ${colInputIndexes[@]}"
+                          if [[ "$columnExistflag" == "true" ]];then
+                            #loop over all the array of indexes starting from end
+                            # to prevent the rows from shifting upward when deleting using sed command
+                            # to delete all rows with index stored in the array. ex: delete all rows with name = hussein.
+                            for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
+                              sed -i "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                              echo "Row is deleted successfully"
+                            done
+                            echo "================================================================================"
+                            break #from six
+                          else
+                            echo "this $colValueInput is not found please try again."
+                          fi
+                        done
+                        
+                
+                        break #from five
+                      else
+                        echo "Invalid selection. Please try again"
+                      fi
+
+                      ;;
+                    *)
+                      echo "please enter a valid number"
+                  
+                  esac
+                done
+                break #from second
+                ;;
+              "All")
+                while true ; do #seven
+                  read -p "Are you sure that you want to delete the entire content of table $tableName? (y/n) " verification
+                  case $verification in
+                    [yY])
+                      sed -i "d" ./$tableName #to delete the entire content of the file
+                      echo "Deleted the entire content of $tableName. "
+                      echo "================================================================================"
+                      break #from seven
+                      ;;
+                    [nN])
+                      echo "Exiting..."
+                      break #from seven
+                      ;;
+                    *)
+                      echo "Error: Invalid input, please try again... "
+                  esac
+                done
+                break #from second case
+                ;;  
+              "Exit")
+                echo "Exiting..."
+                break #from second case
+                ;;
+              *)
+                echo "Please enter a valid number from the menu"
+            esac
+          done
+          break #for the outer select true
+        else
+          echo "Error: Please enter a valid number from the menu and try again... "
+        fi
+        ;;
+      *)
+        echo "Error, Please enter a numbers only and try again... "
+    esac
+  done
+}
+
+
+# drop table
+function dropTable() {
+  tables=$(ls -p | grep -v / | grep -v "^\.")
+  tablesArray=($tables)
+  PS3="Please select a number from the menu: "
+  select option8 in "${tablesArray[@]}"; do
+    case $REPLY in
+    [1-9]*)
+      if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} )); then
+        if [[ -f "./$option8" && -f "./.$option8"_metadata ]]; then
+          read -p "Are you sure you want to permanently drop $option8? [y/n]: " dropFlag
+          if [[ "$dropFlag" == "y" ]]; then
+            rm "$option8"
+            rm "./.$option8"_metadata
+            echo "$option8 is successfully dropped"
+            
+            read -p "Press enter to continue..." exit
+            if [[ -n $exit || $exit == "" ]]; then
+              return
+            fi
+          else
+            echo "Table drop operation cancelled."
+            break
+          fi
+        else
+          echo "Table $option8 does not exist."
+        fi
+      else
+        echo "Error: Please enter a valid number from the menu and try again... "
+      fi
+      ;;
+    esac
+  done
+}
+function tableMenu(){
+  tableMenu="================\nCurrent DB: $1,\n================\n1)Create table\n2)List tables\n3)Insert into Table\n4)Select From Table\n5)Update Table\n6)Delete From Table\n7)Drop Table\n8)Exit"
+  echo -e $tableMenu
+}
+
+main
