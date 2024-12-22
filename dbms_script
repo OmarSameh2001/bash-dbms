@@ -560,7 +560,7 @@ function selectTable() {
           "By Column")
               columns=($(awk -F ":" '{print $1}' "./.$searchTable"_metadata))
               
-                echo "Please enter the name of the column you want: "
+                echo "Please enter the number of the column you want: "
                 select choice in "${columns[@]}" "Exit"; do
                 case $choice in
                 "Exit")
@@ -628,7 +628,7 @@ function selectTable() {
                       ;;
                     *)
                       if [[ $REPLY -le ${#columns[@]} && ${#columns[@]} -gt 0 && $REPLY -gt 0 ]]; then
-                        projection=$(awk -F ":" -v reply="$REPLY" '{print $reply "\n"}' "./$searchTable")
+                        projection=$(awk -F ":" -v reply="$REPLY" '{print $reply}' "./$searchTable")
                         echo "Projection for column $choice in table $searchTable: "
                         echo "$projection"
                         read -p "Press enter to continue..." exit
@@ -659,7 +659,7 @@ function selectTable() {
 function updateTable() {
   # get tables (list all except dir (/) and hidden files (\.))
   tables=($(ls -p | grep -v / | grep -v "^\."))
-  echo "Please enter the name or number of the table you want to update: "
+  echo "Please enter the number of the table you want to update: "
   select updateTable in "${tables[@]}" "Exit"; do
     case $updateTable in
     "Exit")
@@ -678,7 +678,7 @@ function updateTable() {
             break 2
             ;;
           "Whole Row")
-            echo "Please enter the name of the column you want to search: "
+            echo "Please enter the number of the column you want to search: "
             select choice in "${columns[@]}" "Exit"; do
               case $choice in
               "Exit")
@@ -768,7 +768,7 @@ function updateTable() {
             done
             ;;
           "Specific Column")
-            echo "Please enter the name of the column you want to search: "
+            echo "Please enter the number of the column you want to search: "
             select choice in "${columns[@]}" "Exit"; do
               case $choice in
               "Exit")
@@ -790,7 +790,7 @@ function updateTable() {
                     if [[ "yes" =~ $flag ]]; then
                       read -p "Please enter the new value of $choice: " newValue
                       awk -F ":" -v srCol="$REPLY" -v srch="$searchValue" -v new="$newValue" 'BEGIN {OFS=FS} $srCol==srch {$srCol=new} {print}' "./$updateTable" > temp && mv temp "./$updateTable"
-                      echo "${#found[@]} Records updated successfully."
+                      echo "Records updated successfully."
                       read -p "Press enter to continue..." exit
                       if [[ -n $exit || $exit == "" ]]; then
                         return
@@ -868,7 +868,6 @@ function deleteFromTable() {
                       #if primary key exist we delete the whole row which include this Id using sed command,
                       if [[ "$idExistFlag" == "true" ]];then
                         sed -i "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
-                        sed -i "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
                         echo "Row is deleted successfully"
                         echo "================================================================================"
                         break #from third
@@ -918,7 +917,6 @@ function deleteFromTable() {
                             # to prevent the rows from shifting upward when deleting using sed command
                             # to delete all rows with index stored in the array. ex: delete all rows with name = hussein.
                             for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
-                              sed -i "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
                               sed -i "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
                               echo "Row is deleted successfully"
                             done
@@ -986,30 +984,32 @@ function deleteFromTable() {
 # drop table
 function dropTable() {
   tables=$(ls -p | grep -v / | grep -v "^\.")
-  select TBdrop in "$tables" "Exit"; do
-    case $TBdrop in
-    "Exit")
-      echo "Exiting..."
-      break
-      ;;
-    *)
-      if [ -f "./$TBdrop" && -f "./$TBdrop"_metadata ]; then
-        read -p "Are you sure you want to permanently drop $TBdrop? [y/n]: " dropFlag
-        if [[ "$dropFlag" == "y" ]]; then
-          rm "$TBdrop"
-          rm "./$TBdrop"_metadata
-          echo "$TBdrop is successfully dropped"
-          
-          read -p "Press enter to continue..." exit
-          if [[ -n $exit || $exit == "" ]]; then
-            return
+  tablesArray=($tables)
+  PS3="Please select a number from the menu: "
+  select option8 in "${tablesArray[@]}"; do
+    case $REPLY in
+    [1-9]*)
+      if (( $REPLY >= 1 && $REPLY <= ${#tablesArray[@]} )); then
+        if [[ -f "./$option8" && -f "./.$option8"_metadata ]]; then
+          read -p "Are you sure you want to permanently drop $option8? [y/n]: " dropFlag
+          if [[ "$dropFlag" == "y" ]]; then
+            rm "$option8"
+            rm "./.$option8"_metadata
+            echo "$option8 is successfully dropped"
+            
+            read -p "Press enter to continue..." exit
+            if [[ -n $exit || $exit == "" ]]; then
+              return
+            fi
+          else
+            echo "Table drop operation cancelled."
+            break
           fi
         else
-          echo "Table drop operation cancelled."
-          break
+          echo "Table $option8 does not exist."
         fi
       else
-        echo "Table $TBdrop does not exist."
+        echo "Error: Please enter a valid number from the menu and try again... "
       fi
       ;;
     esac
