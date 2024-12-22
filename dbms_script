@@ -844,11 +844,12 @@ function deleteFromTable() {
               "By id")
                 pktype=$(awk -F : ' {if(NR==1){print $2}} ' ./"."$tableName"_metadata" )
                 pkName=$(awk -F : ' {if(NR==1){print $1}} ' ./"."$tableName"_metadata" )
-                #Incase we have int primary key
+                #Incase we have integer primary key
                 if [[ "$pktype" == "int"  ]];then
                   while true ;do #third
                     idExistFlag=false
                     read -p "Please Enter $pkName of the row you want to delete (Only Numbers are accepted): " pkInput
+                    #integer input validation.
                     if [[ $pkInput =~ ^[0-9]+$ && $pkInput -ge 0 ]]; then
                       #store all previous Ids in a variable
                       previousIds=$(awk -F : ' {print $1} ' ./$tableName )
@@ -867,6 +868,7 @@ function deleteFromTable() {
                       #if primary key exist we delete the whole row which include this Id using sed command,
                       if [[ "$idExistFlag" == "true" ]];then
                         sed -i "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
+                        sed -i "${pkInputIndex}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
                         echo "Row is deleted successfully"
                         echo "================================================================================"
                         break #from third
@@ -883,11 +885,9 @@ function deleteFromTable() {
                 break #from second
                 ;;
               "By Column")
-                types=$(awk -F : ' {print $2} ' ./"."$tableName"_metadata" )
+                #get stored column names.
                 names=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
-                values=$(awk -F : ' {print $1} ' ./"."$tableName"_metadata" )
                 namesArray=($names)
-                typesArray=($types)
                 select option5 in "${namesArray[@]}";do #five
                   case $REPLY in
                     [1-9]*)
@@ -916,8 +916,9 @@ function deleteFromTable() {
                           if [[ "$columnExistflag" == "true" ]];then
                             #loop over all the array of indexes starting from end
                             # to prevent the rows from shifting upward when deleting using sed command
-                            # to delete all rows with index stored in the array.
+                            # to delete all rows with index stored in the array. ex: delete all rows with name = hussein.
                             for (( i=${#colInputIndexes[@]}-1;i>=0;i-- ));do
+                              sed -i "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
                               sed -i "${colInputIndexes[i]}d" ./$tableName # the first "" are for macOS Compatibility issues with sed with option i command
                               echo "Row is deleted successfully"
                             done
