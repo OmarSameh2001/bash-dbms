@@ -7,6 +7,8 @@ Two versions of the application are available:
 - A CLI-based version.
 - A GUI version implemented using Zenity.
 
+This project was completed during our ITI internship in the Full Stack Web Development using Python 4-month intensive code camp.
+
 ## Features
 
 ### Main Menu
